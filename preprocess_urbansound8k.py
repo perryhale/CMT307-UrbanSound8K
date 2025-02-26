@@ -20,7 +20,7 @@ def get_urbansound8k(
 	Applies preprocessing steps:
 	1. scale to {-1..+1}
 	2. convert to mono by channel averaging
-	3. resample to target rate """
+	3. resample to target rate with fourier method """
 	
 	# define wav loader function with error handling
 	# type: (str) -> pd.Series
@@ -54,6 +54,8 @@ def get_urbansound8k(
 	
 	# scale to -1..+1
 	data['data'] = data['data'] / 512
+	if verbose:
+		print(data)
 	
 	# convert dual to mono by channel averaging
 	data['data'] = data['data'].apply(lambda x : np.mean(x, axis=1) if x.shape[-1]==2 else x)
@@ -74,11 +76,11 @@ def get_urbansound8k(
 	return metadata, class_names, data
 
 
-def reload_cached(path, cache_dtype='INFER'):
-	""" Load cached 'data' DataFrame into memory
+def reload_cache(path, cache_dtype='INFER'):
+	""" Load cached 'data' csv file into memory
 	# type: (str, str) -> pd.DataFrame
 	
-	Allows data type inferrence from file name by default """
+	Infers data type from file name by default """
 	
 	# infer dtype
 	if cache_dtype == 'INFER':
@@ -91,12 +93,11 @@ def reload_cached(path, cache_dtype='INFER'):
 	return data
 
 
-# type: (str, str, float, str, bool, bool) -> None
 def create_cache(
 		root_path,
 		out_path='.',
-		target_rate=48000,
-		cache_dtype='float64',
+		target_rate=24000,
+		cache_dtype='float32',
 		verbose=False,
 		debug=False
 	):
@@ -106,12 +107,12 @@ def create_cache(
 	Debug option
 	* verbose preprocessing
 	* save truncated cache to disk and reload
-	* save example sound to disk before and after caching"""
+	* save example sound to disk before and after caching """
 	
 	# load and preprocess
 	metadata, class_names, data = get_urbansound8k(
 		root_path,
-		target_rate=48000,
+		target_rate=target_rate,
 		###! debug
 		truncation=8 if debug else None,
 		verbose=(verbose or debug)
@@ -119,8 +120,9 @@ def create_cache(
 	
 	###! debug
 	if debug:
-		example_index = 5
+		example_index = 5#int(np.random.uniform(0,1) * 8)
 		print(metadata.iloc[example_index,:])
+		print(data['data'][example_index].shape)
 		print(data['data'][example_index].dtype, data['data'][example_index])
 		sp.io.wavfile.write(f'{out_path}/data0_{int(target_rate/1000)}khz_float64.wav', data['rate'][example_index], data['data'][example_index])
 		with open(f'{out_path}/raw_size_ref.pkl', 'wb') as f:
@@ -137,7 +139,7 @@ def create_cache(
 	
 	###! debug
 	if debug:
-		data = reload_cached(f'{out_path}/urbansound8k_mono_{int(target_rate/1000)}khz_{cache_dtype}.csv')
+		data = reload_cache(f'{out_path}/urbansound8k_mono_{int(target_rate/1000)}khz_{cache_dtype}.csv')
 		print(data['data'][example_index].dtype, data['data'][example_index])
 		sp.io.wavfile.write(f'{out_path}/data0_{int(target_rate/1000)}khz_{cache_dtype}.wav', data['rate'][example_index], data['data'][example_index])
 
