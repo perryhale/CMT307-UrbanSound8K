@@ -4,6 +4,9 @@ import scipy as sp
 import base64
 from library.data import get_urbansound8k, reload_cache
 
+import matplotlib.pyplot as plt
+from collections import Counter
+
 """ https://urbansounddataset.weebly.com/download-urbansound8k.html """
 """ Create cache with debug actions """
 
@@ -16,7 +19,7 @@ TARGET_RATE = 24000
 CACHE_DTYPE = 'float32'
 VERBOSE = True
 DEBUG = True
-TRUNC = 4192
+TRUNC = 512
 
 
 
@@ -68,10 +71,7 @@ if DEBUG:
 
 ### plot sequence length distribution
 
-import matplotlib.pyplot as plt
-from collections import Counter
 sequence_lengths = [len(x) for x in data['data']]
-#sizes, freqs = zip(*[(s,f) for s,f in sorted(Counter(sequence_lengths).items(), key=lambda t: -t[0]) if s < 256])
 sizes, freqs = zip(*sorted(Counter(sequence_lengths).items(), key=lambda t: -t[0]))
 probs = [f / float(len(data['data'])) for f in freqs]
 print(sizes)
@@ -92,4 +92,4 @@ ax2.set_ylabel('Probability')
 ax2.grid()
 
 #plt.show()
-plt.savefig('preprocess_urbansound8k_sequences.png')
+plt.savefig(f'{OUT_PATH}/preprocess_urbansound8k_sequences.png')
