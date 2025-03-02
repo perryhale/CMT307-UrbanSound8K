@@ -115,17 +115,14 @@ def create_cache(
 	""" Create preprocessed UrbanSound8K data cache
 	# type: (str, str, float, str, bool, bool) -> bool
 	
-	Debug option
-	* verbose preprocessing
-	* save truncated cache to disk and reload
-	* save example sound to disk before and after caching """
+	"""
 	
 	# load and preprocess
 	metadata, class_names, data = get_urbansound8k(
 		root_path,
 		target_rate=target_rate,
 		dtype=cache_dtype,
-		verbose=(verbose or debug)
+		verbose=verbose
 	)
 	
 	try:
