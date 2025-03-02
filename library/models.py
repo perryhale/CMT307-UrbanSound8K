@@ -24,7 +24,7 @@ class TransformerEncoder(layers.Layer):
 		attn_keys = split_key(attn_key, n=2)
 		ffn_keys = split_key(ffn_key, n=3)
 		
-		# initialise attention portion
+		# initialise attention
 		self.attention = layers.MultiHeadAttention(
 			n_heads, 
 			input_dim//n_heads,
@@ -41,7 +41,7 @@ class TransformerEncoder(layers.Layer):
 			gamma_initializer='ones'
 		)
 		
-		# initialise feedforward portion
+		# initialise feedforward
 		self.dense0 = layers.Dense(
 			hidden_dim, 
 			activation='relu',
@@ -81,21 +81,21 @@ class TransformerEncoder(layers.Layer):
 		return z
 
 
-class PositionEncoding(layers.Layer):
+class PositionEncode(layers.Layer):
 	"""
 	"""
 	
 	def __init__(self, key, sequence_length, *args, **kwargs):
-		super(PositionEncoding, self).__init__(*args, **kwargs)
+		super(PositionEncode, self).__init__(*args, **kwargs)
 		self.init_key = key
 		self.sequence_length = sequence_length
 
 	def build(self, input_shape):
 		self.bias = self.add_weight(
-			'bias',
 			shape=(self.sequence_length, input_shape[-1]),
 			initializer=initializers.RandomUniform(seed=self.init_key),
-			trainable=True
+			trainable=True,
+			name='bias'
 		)
 	
 	def call(self, x):
@@ -105,41 +105,41 @@ class PositionEncoding(layers.Layer):
 # type: (int, int, int, int, int, float) -> tf.keras.models.Model
 def get_denoising_transformer_encoder(
 		key,
+		n_tokens,
 		token_dim,
 		embed_dim,
 		hidden_dim,
 		n_blocks,
 		n_heads=8,
 		dropout=0.1,
+		noise_sd=0.3,
 		name='Denoising-Transformer-Encoder'
 	):
 	
 	# split key
-	noise_key, input_embed_key, encoder_key, output_embed_key = split_key(key, n=4)
+	noise_key, embed_key, encoder_key = split_key(key, n=3)
+	embed_keys = split_key(embed_key, n=3)
+	encoder_keys = split_key(encoder_key, n=n_blocks)
 	
 	# init input with gaussian perturbation
-	x = tf.keras.Input(shape=(None, token_dim))
-	z = layers.GaussianNoise(0.3/4, seed=noise_key)(x) # P(-1 <= U(0,0.3) <= +1) = 0.9991419
+	x = tf.keras.Input(shape=(n_tokens, token_dim))
+	z = layers.GaussianNoise(noise_sd, seed=noise_key)(x) # P(-1 <= U(0,0.3) <= +1) = 0.9991419
 	
 	# init input embedding
 	z = layers.Dense(
 		embed_dim,
 		activation=None,
-		kernel_initializer=initializers.GlorotUniform(seed=input_embed_key),
+		kernel_initializer=initializers.GlorotUniform(seed=embed_keys[0]),
 		bias_initializer='zeros',
 		name='input_embedding'
 	)(z)
-	# z = z + PositionEmbedding( ###! additive
-		# 256,
-		# initializer=initializers.GlorotUniform(seed=input_embed_key) ###! todo split key
-	# )(z)
-	z = PositionEncoding(
-		input_embed_key,
-		256
+	z = PositionEncode(
+		embed_keys[1],
+		n_tokens
 	)(z)
 	
 	# init encoder stack
-	for sub_key in split_key(encoder_key, n=n_blocks):
+	for sub_key in encoder_keys:
 		z = TransformerEncoder(
 			sub_key,
 			embed_dim,
@@ -152,7 +152,7 @@ def get_denoising_transformer_encoder(
 	z = layers.Dense(
 		token_dim,
 		activation='tanh',
-		kernel_initializer=initializers.GlorotUniform(seed=output_embed_key),
+		kernel_initializer=initializers.GlorotUniform(seed=embed_keys[2]),
 		bias_initializer='zeros',
 		name='output_embedding'
 	)(z)

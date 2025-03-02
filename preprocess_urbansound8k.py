@@ -22,8 +22,6 @@ DEBUG = True
 TRUNC = 512
 
 
-
-
 ### main
 
 # load and preprocess
@@ -58,7 +56,14 @@ data.to_csv(f'{OUT_PATH}/urbansound8k_mono_{int(TARGET_RATE/1000)}khz_{CACHE_DTY
 if DEBUG:
 	data = reload_cache(f'{OUT_PATH}/urbansound8k_mono_{int(TARGET_RATE/1000)}khz_{CACHE_DTYPE}.csv')
 	print(data['data'][example_index].dtype, data['data'][example_index])
-	sp.io.wavfile.write(f'{OUT_PATH}/data0_{int(TARGET_RATE/1000)}khz_{CACHE_DTYPE}.wav', data['rate'][example_index], data['data'][example_index])
+	
+	
+	for i, row in data.iterrows():
+		sp.io.wavfile.write(f'{OUT_PATH}/data{i}_{int(TARGET_RATE/1000)}khz_{CACHE_DTYPE}.wav', row['rate'], row['data'])
+	print(data['data'][0].dtype)
+	print(data['data'].apply(lambda x : np.min(x).item()).min())
+	print(data['data'].apply(lambda x : np.max(x).item()).max())
+	print(data)
 
 ###! debug notes
 # 48KHz mono wav float64 -> floatXX -> bytes -> base64 string

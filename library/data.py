@@ -9,6 +9,7 @@ import base64
 def get_urbansound8k(
 		root_path,
 		target_rate=24000,
+		dtype='float32',
 		truncation=None,
 		verbose=False
 	):
@@ -53,8 +54,16 @@ def get_urbansound8k(
 		print(data)
 	
 	# scale to -1..+1
-	data['data'] = data['data'] / 512
 	if verbose:
+		print(data['data'][0].dtype)
+		print(data['data'].apply(lambda x : np.min(x).item()).min())
+		print(data['data'].apply(lambda x : np.max(x).item()).max())
+	data['data'] = data['data'].apply(lambda x : x.astype(dtype))
+	data['data'] = data['data'].apply(lambda x : -1+2*(x-np.min(x)) / (np.max(x)-np.min(x)))
+	if verbose:
+		print(data['data'][0].dtype)
+		print(data['data'].apply(lambda x : np.min(x).item()).min())
+		print(data['data'].apply(lambda x : np.max(x).item()).max())
 		print(data)
 	
 	# convert dual to mono by channel averaging
@@ -90,6 +99,9 @@ def reload_cache(path, cache_dtype='INFER'):
 	data = pd.read_csv(path)
 	data['data'] = data['data'].apply(lambda x : np.frombuffer(base64.b64decode(x), dtype=cache_dtype))
 	
+	# force rescale
+	data['data'] = data['data'].apply(lambda x : -1+2*(x-np.min(x)) / (np.max(x)-np.min(x)))
+	
 	return data
 
 
@@ -97,7 +109,7 @@ def create_cache(
 		root_path,
 		out_path='.',
 		target_rate=24000,
-		cache_dtype='float32',
+		cache_dtype='float64',
 		verbose=False
 	):
 	""" Create preprocessed UrbanSound8K data cache
@@ -112,6 +124,7 @@ def create_cache(
 	metadata, class_names, data = get_urbansound8k(
 		root_path,
 		target_rate=target_rate,
+		dtype=cache_dtype,
 		verbose=(verbose or debug)
 	)
 	

@@ -1,6 +1,7 @@
 import numpy as np
 import time
 import pickle
+import matplotlib.pyplot as plt
 from tensorflow.keras import losses, optimizers, callbacks
 
 from library.random import split_key
@@ -23,14 +24,14 @@ K2 = split_key(K1)[1]
 ### hyperparameters
 
 # architecture
-N_SAMPLES = 96_000
-N_TOKENS = 256
+N_TOKENS = 512
+N_SAMPLES = 96_000 + (96_000 % N_TOKENS)
 EMBED_DIM = 256
 HIDDEN_DIM = 256
 ENCODER_BLOCKS = 1
 
 # training
-ETA = 1e-6
+ETA = 1e-3
 L2_LAM = 0. ###! unimplemented
 BATCH_SIZE = 32
 N_EPOCHS = 30
@@ -55,6 +56,10 @@ print(data)
 train_x = np.array(list(data[(data['fold'] != 1)]['data']))
 test_x = np.array(list(data[(data['fold'] == 1)]['data']))
 
+
+plt.imshow(train_x[np.random.randint(0,len(train_x)-1)])
+plt.show()
+
 # trace
 print(train_x.shape, 'train')
 print(test_x.shape, 'test')
@@ -67,10 +72,11 @@ loss_fn = losses.MeanSquaredError()
 optimizer = optimizers.AdamW(learning_rate=ETA)
 
 model = get_denoising_transformer_encoder(
-	K1, 
-	N_SAMPLES//N_TOKENS, 
-	EMBED_DIM, 
-	HIDDEN_DIM, 
+	K1,
+	N_TOKENS,
+	N_SAMPLES//N_TOKENS,
+	EMBED_DIM,
+	HIDDEN_DIM,
 	ENCODER_BLOCKS
 )
 model.compile(loss=loss_fn, optimizer=optimizer, metrics=['root_mean_squared_error'])
@@ -96,8 +102,16 @@ train_history = model.fit(
 	callbacks=[checkpoint_callback],
 	verbose=int(VERBOSE)
 ).history
-
 print(train_history)
+with open(f'{model.name}_history.pkl'.replace('-','_').lower(), 'wb') as f: pickle.dump(train_history, f)
 
-with open('train_model_unsupervised_history.pkl', 'wb') as f:
-	pickle.dump(train_history, f)
+
+### plot history
+
+plt.title('Unsupervised Denoising')
+plt.plot(train_history['loss'], label='train')
+plt.plot(train_history['val_loss'], label='val', c='r')
+plt.legend()
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.show()
