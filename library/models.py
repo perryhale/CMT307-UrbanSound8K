@@ -219,6 +219,10 @@ def convert_dte_to_classifier(
 		bias_initializer='zeros',
 		name='classification_head'
 	)(z)
+	yh = layers.Lambda(
+		lambda x : x[:, 0, :],
+		name='classification_token'
+	)(yh)
 	
 	# finalise model
 	model = models.Model(inputs=x, outputs=yh, name=name)

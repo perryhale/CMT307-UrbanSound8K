@@ -6,7 +6,7 @@ from tensorflow.keras import losses, optimizers, callbacks
 
 from library.random import split_key
 from library.data import reload_cache
-from library.models import get_denoising_transformer_encoder
+from library.models import get_denoising_transformer_encoder, convert_dte_to_classifier
 
 
 ### setup
@@ -28,6 +28,7 @@ N_SAMPLES = 96_000 + (96_000 % N_TOKENS)
 EMBED_DIM = 128
 HIDDEN_DIM = 256
 ENCODER_BLOCKS = 1
+N_CLASSES = 10
 
 # training
 ETA = 1e-3
@@ -52,22 +53,26 @@ data['data'] = data['data'].apply(lambda x : np.array(np.split(np.pad(x, (0, N_S
 print(data)
 
 # partition data
-train_x = np.array(list(data[(data['fold'] != 1)]['data']))
-test_x = np.array(list(data[(data['fold'] == 1)]['data']))
+train_idx = (data['fold'] != 1)
+test_idx = (data['fold'] == 1)
+train_x = np.array(list(data[train_idx]['data'])) ###! todo setup tf.data.Dataset
+train_y = np.array(list(data[train_idx]['class']))[:, np.newaxis]
+test_x = np.array(list(data[test_idx]['data']))
+test_y = np.array(list(data[test_idx]['class']))[:, np.newaxis]
 
-# plot sample
-plt.imshow(train_x[np.random.randint(0, len(train_x)-1)])
-plt.show()
+# # plot sample
+# plt.imshow(train_x[np.random.randint(0, len(train_x)-1)])
+# plt.show()
 
 # trace
-print(train_x.shape, 'train')
-print(test_x.shape, 'test')
+print(train_x.shape, train_y.shape, 'train')
+print(test_x.shape, test_y.shape, 'test')
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
 ### initialise model
 
-loss_fn = losses.MeanSquaredError()
+loss_fn = losses.SparseCategoricalCrossentropy()
 optimizer = optimizers.AdamW(learning_rate=ETA)
 
 model = get_denoising_transformer_encoder(
@@ -78,7 +83,9 @@ model = get_denoising_transformer_encoder(
 	HIDDEN_DIM,
 	ENCODER_BLOCKS
 )
-model.compile(loss=loss_fn, optimizer=optimizer, metrics=['root_mean_squared_error'])
+model.load_weights('denoising_transformer_encoder.weights.h5')
+model = convert_dte_to_classifier(model, N_CLASSES)
+model.compile(loss=loss_fn, optimizer=optimizer, metrics=['accuracy'])
 model.summary()
 
 checkpoint_callback = callbacks.ModelCheckpoint(
@@ -94,7 +101,7 @@ checkpoint_callback = callbacks.ModelCheckpoint(
 
 train_history = model.fit(
 	train_x,
-	train_x,
+	train_y,
 	epochs=N_EPOCHS,
 	validation_split=VAL_RATIO,
 	batch_size=BATCH_SIZE,
@@ -108,7 +115,7 @@ print(train_history)
 
 test_history = model.evaluate(
 	test_x,
-	test_x,
+	test_y,
 	batch_size=BATCH_SIZE,
 	verbose=int(VERBOSE),
 	return_dict=True
@@ -127,7 +134,7 @@ with open(f'{model.name}_history.pkl'.replace('-','_').lower(), 'wb') as f:
 
 ### plot history
 
-plt.title('Unsupervised Denoising')
+plt.title('Supervised classification')
 plt.plot(train_history['loss'], label='train')
 plt.plot(train_history['val_loss'], label='val', c='r')
 plt.scatter([len(train_history['loss'])-1], test_history['loss'], label='test', c='g', marker='x')
