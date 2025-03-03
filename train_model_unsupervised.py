@@ -34,7 +34,10 @@ ETA = 1e-3
 L2_LAM = 0. ###! unimplemented
 BATCH_SIZE = 32
 N_EPOCHS = 2
+
+# data
 VAL_RATIO = 0.10
+TEST_IDX = 1
 
 # tracing
 VERBOSE = True
@@ -47,13 +50,13 @@ assert (N_SAMPLES % N_TOKENS) == 0
 # load data
 data = reload_cache('data/urbansound8k_mono_24khz_float32.csv')
 
-# pad and tokenize sequences
+# pad and slice sequences
 data['data'] = data['data'].apply(lambda x : np.array(np.split(np.pad(x, (0, N_SAMPLES-len(x))) if len(x) < N_SAMPLES else x[:N_SAMPLES], N_TOKENS)))
 print(data)
 
 # partition data
-train_x = np.array(list(data[(data['fold'] != 1)]['data']))
-test_x = np.array(list(data[(data['fold'] == 1)]['data']))
+train_x = np.array(list(data[(data['fold'] != TEST_IDX)]['data']))
+test_x = np.array(list(data[(data['fold'] == TEST_IDX)]['data']))
 
 # plot sample
 plt.imshow(train_x[np.random.randint(0, len(train_x)-1)])
@@ -89,6 +92,8 @@ checkpoint_callback = callbacks.ModelCheckpoint(
 	save_best_only=True
 )
 
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+
 
 ### train model
 
@@ -101,7 +106,9 @@ train_history = model.fit(
 	callbacks=[checkpoint_callback],
 	verbose=int(VERBOSE)
 ).history
+
 print(train_history)
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
 ### evaluate model
@@ -113,7 +120,9 @@ test_history = model.evaluate(
 	verbose=int(VERBOSE),
 	return_dict=True
 )
+
 print(test_history)
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
 ### save history

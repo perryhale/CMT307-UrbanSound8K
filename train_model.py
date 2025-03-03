@@ -35,7 +35,10 @@ ETA = 1e-3
 L2_LAM = 0. ###! unimplemented
 BATCH_SIZE = 32
 N_EPOCHS = 2
+
+# data
 VAL_RATIO = 0.10
+TEST_IDX = 1
 
 # tracing
 VERBOSE = True
@@ -48,21 +51,25 @@ assert (N_SAMPLES % N_TOKENS) == 0
 # load data
 data = reload_cache('data/urbansound8k_mono_24khz_float32.csv')
 
-# pad and tokenize sequences
+# pad and slice sequences
 data['data'] = data['data'].apply(lambda x : np.array(np.split(np.pad(x, (0, N_SAMPLES-len(x))) if len(x) < N_SAMPLES else x[:N_SAMPLES], N_TOKENS)))
 print(data)
 
+# substitute cls token at first index
+data['data'] = data['data'].apply(lambda x : np.concatenate((np.array([[np.sign((i%2)-0.5) for i in range(x.shape[1])]]), x[1:,:])))
+print(data)
+
 # partition data
-train_idx = (data['fold'] != 1)
-test_idx = (data['fold'] == 1)
+train_idx = (data['fold'] != TEST_IDX)
+test_idx = (data['fold'] == TEST_IDX)
 train_x = np.array(list(data[train_idx]['data'])) ###! todo setup tf.data.Dataset
 train_y = np.array(list(data[train_idx]['class']))[:, np.newaxis]
 test_x = np.array(list(data[test_idx]['data']))
 test_y = np.array(list(data[test_idx]['class']))[:, np.newaxis]
 
-# # plot sample
-# plt.imshow(train_x[np.random.randint(0, len(train_x)-1)])
-# plt.show()
+# plot sample
+plt.imshow(train_x[np.random.randint(0, len(train_x)-1)])
+plt.show()
 
 # trace
 print(train_x.shape, train_y.shape, 'train')
@@ -83,7 +90,7 @@ model = get_denoising_transformer_encoder(
 	HIDDEN_DIM,
 	ENCODER_BLOCKS
 )
-model.load_weights('denoising_transformer_encoder.weights.h5')
+#model.load_weights('denoising_transformer_encoder.weights.h5')
 model = convert_dte_to_classifier(model, N_CLASSES)
 model.compile(loss=loss_fn, optimizer=optimizer, metrics=['accuracy'])
 model.summary()
