@@ -100,7 +100,7 @@ class FixedLearnablePositionalEncoding(layers.Layer):
 			name='bias'
 		)
 	
-	# type: (PositionEncode, np.ndarray) -> np.ndarray
+	# type: (FixedLearnablePositionalEncoding, np.ndarray) -> np.ndarray
 	def call(self, x):
 		return x + self.bias
 
