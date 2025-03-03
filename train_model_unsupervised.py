@@ -1,9 +1,11 @@
 import numpy as np
-import time
-import pickle
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras import losses, optimizers, callbacks
+
+import time
+import random
+import pickle
 
 from library.random import split_key
 from library.data import reload_cache
@@ -18,7 +20,12 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # init RNG seeds
 K0 = 999
-K1 = split_key(K0)[1]
+K1, K2 = split_key(K0)
+
+# set global RNG seed
+random.seed(K1)
+np.random.seed(K1)
+tf.random.set_seed(K1)
 
 
 ### hyperparameters
@@ -91,7 +98,7 @@ loss_fn = losses.MeanSquaredError()
 optimizer = optimizers.AdamW(learning_rate=ETA)
 
 model = get_denoising_transformer_encoder(
-	K1,
+	K2,
 	N_TOKENS,
 	N_SAMPLES//N_TOKENS,
 	EMBED_DIM,
