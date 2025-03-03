@@ -2,6 +2,7 @@ import numpy as np
 import time
 import pickle
 import matplotlib.pyplot as plt
+import tensorflow as tf
 from tensorflow.keras import losses, optimizers, callbacks
 
 from library.random import split_key
@@ -27,14 +28,14 @@ N_TOKENS = 512
 N_SAMPLES = 96_000 + (96_000 % N_TOKENS)
 EMBED_DIM = 128
 HIDDEN_DIM = 256
-ENCODER_BLOCKS = 1
+ENCODER_BLOCKS = 2
 N_CLASSES = 10
 
 # training
 ETA = 1e-3
 L2_LAM = 0. ###! unimplemented
 BATCH_SIZE = 32
-N_EPOCHS = 2
+N_EPOCHS = 10
 
 # data
 VAL_RATIO = 0.10
@@ -62,8 +63,12 @@ print(data)
 # partition data
 train_idx = (data['fold'] != TEST_IDX)
 test_idx = (data['fold'] == TEST_IDX)
-train_x = np.array(list(data[train_idx]['data'])) ###! todo setup tf.data.Dataset
+train_x = np.array(list(data[train_idx]['data']))
 train_y = np.array(list(data[train_idx]['class']))[:, np.newaxis]
+val_x = train_x[int(len(train_x)*(1-VAL_RATIO)):]
+val_y = train_y[int(len(train_y)*(1-VAL_RATIO)):]
+train_x = train_x[:int(len(train_x)*(1-VAL_RATIO))]
+train_y = train_y[:int(len(train_y)*(1-VAL_RATIO))]
 test_x = np.array(list(data[test_idx]['data']))
 test_y = np.array(list(data[test_idx]['class']))[:, np.newaxis]
 
@@ -73,8 +78,21 @@ plt.show()
 
 # trace
 print(train_x.shape, train_y.shape, 'train')
+print(val_x.shape, val_y.shape, 'val')
 print(test_x.shape, test_y.shape, 'test')
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+
+# convert to tf.data.Dataset
+train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_y)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
+val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_y)).batch(BATCH_SIZE)
+test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_y)).batch(BATCH_SIZE)
+
+# memory cleanup
+del data
+del train_idx; del test_idx
+del train_x; del train_y
+del val_x; del val_y
+del test_x; del test_y
 
 
 ### initialise model
@@ -90,7 +108,7 @@ model = get_denoising_transformer_encoder(
 	HIDDEN_DIM,
 	ENCODER_BLOCKS
 )
-#model.load_weights('denoising_transformer_encoder.weights.h5')
+model.load_weights('denoising_transformer_encoder.weights.h5')
 model = convert_dte_to_classifier(model, N_CLASSES)
 model.compile(loss=loss_fn, optimizer=optimizer, metrics=['accuracy'])
 model.summary()
@@ -103,31 +121,34 @@ checkpoint_callback = callbacks.ModelCheckpoint(
 	save_best_only=True
 )
 
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+
 
 ### train model
 
 train_history = model.fit(
-	train_x,
-	train_y,
+	train_dataset,
 	epochs=N_EPOCHS,
-	validation_split=VAL_RATIO,
-	batch_size=BATCH_SIZE,
+	validation_data=val_dataset,
 	callbacks=[checkpoint_callback],
 	verbose=int(VERBOSE)
 ).history
+
 print(train_history)
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
 ### evaluate model
 
+model.load_weights(f'{model.name}.weights.h5'.replace('-','_').lower())
 test_history = model.evaluate(
-	test_x,
-	test_y,
-	batch_size=BATCH_SIZE,
+	test_dataset,
 	verbose=int(VERBOSE),
 	return_dict=True
 )
+
 print(test_history)
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
 ### save history
@@ -141,7 +162,7 @@ with open(f'{model.name}_history.pkl'.replace('-','_').lower(), 'wb') as f:
 
 ### plot history
 
-plt.title('Supervised classification')
+plt.title('Classification task')
 plt.plot(train_history['loss'], label='train')
 plt.plot(train_history['val_loss'], label='val', c='r')
 plt.scatter([len(train_history['loss'])-1], test_history['loss'], label='test', c='g', marker='x')

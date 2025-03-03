@@ -56,8 +56,6 @@ data.to_csv(f'{OUT_PATH}/urbansound8k_mono_{int(TARGET_RATE/1000)}khz_{CACHE_DTY
 if DEBUG:
 	data = reload_cache(f'{OUT_PATH}/urbansound8k_mono_{int(TARGET_RATE/1000)}khz_{CACHE_DTYPE}.csv')
 	print(data['data'][example_index].dtype, data['data'][example_index])
-	
-	
 	for i, row in data.iterrows():
 		sp.io.wavfile.write(f'{OUT_PATH}/data{i}_{int(TARGET_RATE/1000)}khz_{CACHE_DTYPE}.wav', row['rate'], row['data'])
 	print(data['data'][0].dtype)

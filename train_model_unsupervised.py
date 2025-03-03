@@ -2,6 +2,7 @@ import numpy as np
 import time
 import pickle
 import matplotlib.pyplot as plt
+import tensorflow as tf
 from tensorflow.keras import losses, optimizers, callbacks
 
 from library.random import split_key
@@ -27,13 +28,13 @@ N_TOKENS = 512
 N_SAMPLES = 96_000 + (96_000 % N_TOKENS)
 EMBED_DIM = 128
 HIDDEN_DIM = 256
-ENCODER_BLOCKS = 1
+ENCODER_BLOCKS = 2
 
 # training
 ETA = 1e-3
 L2_LAM = 0. ###! unimplemented
 BATCH_SIZE = 32
-N_EPOCHS = 2
+N_EPOCHS = 10
 
 # data
 VAL_RATIO = 0.10
@@ -55,8 +56,12 @@ data['data'] = data['data'].apply(lambda x : np.array(np.split(np.pad(x, (0, N_S
 print(data)
 
 # partition data
-train_x = np.array(list(data[(data['fold'] != TEST_IDX)]['data']))
-test_x = np.array(list(data[(data['fold'] == TEST_IDX)]['data']))
+train_idx = (data['fold'] != TEST_IDX)
+test_idx = (data['fold'] == TEST_IDX)
+train_x = np.array(list(data[train_idx]['data']))
+val_x = train_x[int(len(train_x)*(1-VAL_RATIO)):]
+train_x = train_x[:int(len(train_x)*(1-VAL_RATIO))]
+test_x = np.array(list(data[test_idx]['data']))
 
 # plot sample
 plt.imshow(train_x[np.random.randint(0, len(train_x)-1)])
@@ -66,6 +71,18 @@ plt.show()
 print(train_x.shape, 'train')
 print(test_x.shape, 'test')
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+
+# convert to tf.data.Dataset
+train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
+val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
+test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_SIZE)
+
+# memory cleanup
+del data
+del train_idx; del test_idx
+del train_x
+del val_x
+del test_x
 
 
 ### initialise model
@@ -98,11 +115,9 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 ### train model
 
 train_history = model.fit(
-	train_x,
-	train_x,
+	train_dataset,
 	epochs=N_EPOCHS,
-	validation_split=VAL_RATIO,
-	batch_size=BATCH_SIZE,
+	validation_data=val_dataset,
 	callbacks=[checkpoint_callback],
 	verbose=int(VERBOSE)
 ).history
@@ -113,10 +128,9 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 ### evaluate model
 
+model.load_weights(f'{model.name}.weights.h5'.replace('-','_').lower())
 test_history = model.evaluate(
-	test_x,
-	test_x,
-	batch_size=BATCH_SIZE,
+	test_dataset,
 	verbose=int(VERBOSE),
 	return_dict=True
 )
