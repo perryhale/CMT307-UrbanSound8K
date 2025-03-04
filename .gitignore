@@ -5,6 +5,8 @@ data/UrbanSound8K/*
 
 library/__pycache__/
 
+jobs/
+
 specification/
 
 *.*

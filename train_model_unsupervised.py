@@ -71,8 +71,16 @@ train_x = train_x[:int(len(train_x)*(1-VAL_RATIO))]
 test_x = np.array(list(data[test_idx]['data']))
 
 # plot sample
-plt.imshow(train_x[np.random.randint(0, len(train_x)-1)])
-plt.show()
+x_sample = train_x[np.random.randint(0, len(train_x)-1)]
+plt.figure(figsize=(4,10))
+plt.imshow(x_sample)
+plt.savefig('train_model_unsupervised_input-001.png')
+plt.close()
+plt.figure(figsize=(10,3))
+plt.imshow(x_sample[:16])
+plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+plt.savefig('train_model_unsupervised_input-002.png')
+plt.close()
 
 # trace
 print(train_x.shape, 'train')
@@ -86,6 +94,7 @@ test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_
 
 # memory cleanup
 del data
+del x_sample
 del train_idx; del test_idx
 del train_x
 del val_x
@@ -109,7 +118,7 @@ model.compile(loss=loss_fn, optimizer=optimizer, metrics=['root_mean_squared_err
 model.summary()
 
 checkpoint_callback = callbacks.ModelCheckpoint(
-	filepath=f'{model.name}.weights.h5'.replace('-','_').lower(),
+	filepath=f'{model.name}.weights.h5',
 	save_weights_only=True,
 	monitor='val_loss',
 	mode='min',
@@ -135,7 +144,7 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 ### evaluate model
 
-model.load_weights(f'{model.name}.weights.h5'.replace('-','_').lower())
+model.load_weights(f'{model.name}.weights.h5')
 test_history = model.evaluate(
 	test_dataset,
 	verbose=int(VERBOSE),
@@ -148,7 +157,7 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 ### save history
 
-with open(f'{model.name}_history.pkl'.replace('-','_').lower(), 'wb') as f:
+with open(f'{model.name}.history.pkl', 'wb') as f:
 	pickle.dump({
 		'train':train_history,
 		'test':test_history
@@ -164,4 +173,6 @@ plt.scatter([len(train_history['loss'])-1], test_history['loss'], label='test', 
 plt.legend()
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
-plt.show()
+plt.grid()
+plt.savefig(f'{model.name}.history.png')
+plt.close()

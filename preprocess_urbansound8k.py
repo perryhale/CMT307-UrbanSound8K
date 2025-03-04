@@ -18,6 +18,7 @@ OUT_PATH = 'data/'
 TARGET_RATE = 24000
 CACHE_DTYPE = 'float32'
 VERBOSE = True
+
 DEBUG = True
 TRUNC = 512
 
@@ -82,13 +83,11 @@ print(freqs)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12,5))
 
-#ax1.scatter(sizes, freqs, color='r', marker='x')
-for i in range(len(sizes)): ax1.vlines(sizes[i], 0, freqs[i], colors='red')
+for i in range(len(sizes)): ax1.vlines(sizes[i], 0, freqs[i], colors='red') ###! values are too sparse for bar rendering
 ax1.set_xlabel('Sequence length')
 ax1.set_ylabel('Count')
 ax1.grid()
 
-#ax2.scatter(sizes, probs, marker='x')
 for i in range(len(sizes)): ax2.vlines(sizes[i], 0, probs[i], colors='C0')
 ax2.set_xlabel('Sequence length')
 ax2.set_ylabel('Probability')

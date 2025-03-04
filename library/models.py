@@ -124,7 +124,7 @@ def get_denoising_transformer_encoder(
 		n_heads=8,
 		dropout=0.1,
 		noise_sd=0.3,
-		name='Denoising-Transformer-Encoder'
+		name='denoising_transformer_encoder'
 	):
 	""" Instantiate Denoising Transformer Encoder
 	# type: (int, int, int, int, int, int, int, float, float, str) -> tf.keras.models.Model
@@ -189,7 +189,7 @@ def convert_dte_to_classifier(
 		denoising_model,
 		n_classes,
 		key=None,
-		name='Transformer-Encoder-Classifier-from-DTE-backbone'
+		name='transformer_encoder_classifier_from_dte_backbone'
 	):
 	""" Instantiate Transformer Encoder Classifier from Denoising Transformer Encoder backbone
 	# type: (tf.keras.models.Model, int, int, str) -> tf.keras.models.Model
