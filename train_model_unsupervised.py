@@ -8,8 +8,9 @@ import random
 import pickle
 
 from library.random import split_key
-from library.data import reload_cache
-from library.models import get_denoising_transformer_encoder
+from library.data.io import reload_cache
+from library.data.pipeline import prepare_data, pad_and_slice_fn
+from library.models.transformer import get_denoising_transformer_encoder
 
 
 ### setup
@@ -38,10 +39,10 @@ HIDDEN_DIM = 256
 ENCODER_BLOCKS = 2
 
 # training
-ETA = 1e-3
+ETA = 1e-5
 L2_LAM = 0. ###! unimplemented
-BATCH_SIZE = 32
-N_EPOCHS = 10
+BATCH_SIZE = 64
+N_EPOCHS = 100
 
 # data
 VAL_RATIO = 0.10
@@ -49,6 +50,7 @@ TEST_IDX = 1
 
 # tracing
 VERBOSE = True
+VERBOSE_LVL = 2
 
 assert (N_SAMPLES % N_TOKENS) == 0
 
@@ -58,35 +60,36 @@ assert (N_SAMPLES % N_TOKENS) == 0
 # load data
 data = reload_cache('data/urbansound8k_mono_24khz_float32.csv')
 
-# pad and slice sequences
-data['data'] = data['data'].apply(lambda x : np.array(np.split(np.pad(x, (0, N_SAMPLES-len(x))) if len(x) < N_SAMPLES else x[:N_SAMPLES], N_TOKENS)))
-print(data)
+# define transforms
+transforms = [pad_and_slice_fn]
+transform_kwargs = [{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}]
 
-# partition data
-train_idx = (data['fold'] != TEST_IDX)
-test_idx = (data['fold'] == TEST_IDX)
-train_x = np.array(list(data[train_idx]['data']))
-val_x = train_x[int(len(train_x)*(1-VAL_RATIO)):]
-train_x = train_x[:int(len(train_x)*(1-VAL_RATIO))]
-test_x = np.array(list(data[test_idx]['data']))
+# transform and partition data
+(train_x, _), (val_x, _), (test_x, _) = prepare_data(
+	data,
+	test_idx=TEST_IDX,
+	val_ratio=VAL_RATIO,
+	batch_size=BATCH_SIZE,
+	transforms=transforms,
+	transform_kwargs=transform_kwargs,
+	verbose=VERBOSE_LVL*int(VERBOSE),
+	plot_title=__file__.replace('.py','')
+)
 
 # plot sample
-x_sample = train_x[np.random.randint(0, len(train_x)-1)]
-plt.figure(figsize=(4,10))
-plt.imshow(x_sample)
-plt.savefig('train_model_unsupervised_input-001.png')
-plt.close()
-plt.figure(figsize=(10,3))
-plt.imshow(x_sample[:16])
-plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-plt.savefig('train_model_unsupervised_input-002.png')
-plt.close()
-
-# trace
-print(train_x.shape, 'train')
-print(test_x.shape, 'test')
-print(f'[Elapsed time: {time.time()-T0:.2f}s]')
-
+if verbose > 2:
+	x_sample = train_x[np.random.randint(0, len(train_x)-1)]
+	plt.figure(figsize=(4,10))
+	plt.imshow(x_sample)
+	plt.savefig(f'{plot_title}-001.png')
+	plt.close()
+	plt.figure(figsize=(10,3))
+	plt.imshow(x_sample[:16])
+	plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+	plt.savefig(f'{plot_title}-002.png')
+	plt.subplots_adjust()
+	plt.close()
+	
 # convert to tf.data.Dataset
 train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
 val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
@@ -94,11 +97,8 @@ test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_
 
 # memory cleanup
 del data
-del x_sample
-del train_idx; del test_idx
-del train_x
-del val_x
-del test_x
+del transforms; del transform_kwargs
+del train_x; del val_x; del test_x
 
 
 ### initialise model

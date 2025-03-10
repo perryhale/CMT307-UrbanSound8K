@@ -50,6 +50,7 @@ TEST_IDX = 1
 
 # tracing
 VERBOSE = True
+VERBOSE_LVL = 3
 
 assert (N_SAMPLES % N_TOKENS) == 0
 
@@ -59,58 +60,25 @@ assert (N_SAMPLES % N_TOKENS) == 0
 # load data
 data = reload_cache('data/urbansound8k_mono_24khz_float32.csv')
 
-# pad and slice sequences
-###! 3.90625ms per token with 96256 samples @24KHz
-data['data'] = data['data'].apply(lambda x : np.array(np.split(np.pad(x, (0, N_SAMPLES-len(x))) if len(x) < N_SAMPLES else x[:N_SAMPLES], N_TOKENS)))
-print(data)
+# define transforms
+transforms=[pad_and_slice_fn, cls_token_fn]
+transform_kwargs=[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}, {}]
 
-# substitute cls token at first index
-data['data'] = data['data'].apply(lambda x : np.concatenate((np.array([[np.sign((i%2)-0.5) for i in range(x.shape[1])]]), x[1:,:])))
-print(data)
-
-# partition data
-train_idx = (data['fold'] != TEST_IDX)
-test_idx = (data['fold'] == TEST_IDX)
-train_x = np.array(list(data[train_idx]['data']))
-train_y = np.array(list(data[train_idx]['class']))[:, np.newaxis]
-val_x = train_x[int(len(train_x)*(1-VAL_RATIO)):]
-val_y = train_y[int(len(train_y)*(1-VAL_RATIO)):]
-train_x = train_x[:int(len(train_x)*(1-VAL_RATIO))]
-train_y = train_y[:int(len(train_y)*(1-VAL_RATIO))]
-test_x = np.array(list(data[test_idx]['data']))
-test_y = np.array(list(data[test_idx]['class']))[:, np.newaxis]
-
-# plot sample
-x_sample = train_x[np.random.randint(0, len(train_x)-1)]
-plt.figure(figsize=(4,10))
-plt.imshow(x_sample)
-plt.savefig('train_model_random_init_input-001.png')
-plt.close()
-plt.figure(figsize=(10,3))
-plt.imshow(x_sample[:16])
-plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-plt.savefig('train_model_random_init_input-002.png')
-plt.subplots_adjust()
-plt.close()
-
-# trace
-print(train_x.shape, train_y.shape, 'train')
-print(val_x.shape, val_y.shape, 'val')
-print(test_x.shape, test_y.shape, 'test')
-print(f'[Elapsed time: {time.time()-T0:.2f}s]')
-
-# convert to tf.data.Dataset
-train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_y)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
-val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_y)).batch(BATCH_SIZE)
-test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_y)).batch(BATCH_SIZE)
+# transform and partition data
+train_dataset, val_dataset, test_dataset = prepare_data(
+	data,
+	test_idx=TEST_IDX,
+	val_ratio=VAL_RATIO,
+	batch_size=BATCH_SIZE,
+	transforms=transforms
+	transform_kwargs=transform_kwargsm
+	verbose=VERBOSE_LVL*int(VERBOSE)
+)
 
 # memory cleanup
 del data
-del x_sample
-del train_idx; del test_idx
-del train_x; del train_y
-del val_x; del val_y
-del test_x; del test_y
+del transforms
+del transform_kwargs
 
 
 ### initialise model

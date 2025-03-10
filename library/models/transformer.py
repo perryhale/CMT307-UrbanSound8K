@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import layers, initializers, models
-from .random import split_key
+from ..random import split_key
 
 
 class TransformerEncoder(layers.Layer):
