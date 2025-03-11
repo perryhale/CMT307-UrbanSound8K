@@ -65,7 +65,7 @@ def create_cache(
 		class_names=None,
 		cache_root='.',
 		cache_dtype='float32',
-		cache_name='data_cache'
+		cache_name='unnamed_cache'
 	):
 	""" Write data to cache
 	# type: (pd.DataFrame, Dict[int:str], str, int, str) -> bool
@@ -73,7 +73,7 @@ def create_cache(
 	"""
 	
 	# determine cache location
-	cache_location = f'{cache_root}/{cache_name}.csv'
+	cache_location = f'{cache_root}/{cache_name}_{cache_dtype}.csv'
 	
 	try:
 		

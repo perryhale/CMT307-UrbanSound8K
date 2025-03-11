@@ -5,6 +5,8 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import abc
 
+""" Preprocessing pipeline functions, applied over rows of dataframe
+"""
 
 def mono_avg_fn(row):
 	""" Convert dual to mono by channel averaging
