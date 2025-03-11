@@ -5,7 +5,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import abc
 
-""" Preprocessing pipeline functions, applied over rows of dataframe
+""" Preprocessing functions, applied over rows of dataframe
 """
 
 def mono_avg_fn(row):
@@ -60,7 +60,7 @@ def pad_and_slice_fn(row, n_samples=96256, n_tokens=512):
 	""" Pad and slice raw audio sequences into raw tokens
 	# type: (pd.Series, int, int) -> pd.Series
 	
-	Default args produce 3.90625ms tokens @24KHz
+	Default args produce 7.8125ms tokens for 4 seconds at @24KHz
 	n_samples must be divisible by n_tokens
 	"""
 	assert (n_samples % n_tokens) == 0
@@ -93,26 +93,36 @@ def cls_token_fn(row):
 def transform_data(
 		data,
 		transforms,
-		transform_kwargs=None,
+		transform_kwargs=[],
+		callbacks=[],
 		verbose=False
 	):
 	""" Apply sequential transformations to dataframe rows
-	# type: (pd.DataFrame, List[Callable[[pd.Series, ...], pd.Series]], List[Dict[str, ...]], bool) -> pd.DataFrame
+	# type: (
+		pd.DataFrame, 
+		List[Callable[[pd.Series, ...], pd.Series]], 
+		List[Dict[str, ...]], 
+		List[Callable[[int, pd.Series], None]], 
+		bool
+	) -> pd.DataFrame
 	
 	+ data: pandas DataFrame with columns ['rate', 'data', 'fold', 'class']
-	+ transforms: list of preprocessing transforms, applied sequentially to data rows
+	+ transforms: list of preprocessing transforms. assmues (pd.Series, **) -> pd.Series applied to data rows
 	+ transform_kwargs: list of keyword arguments for each transform
+	+ callbacks: functions called every transform on data, each takes int argmuent representing transform index and current data object
 	"""
 	
 	# handle kwargs
-	if transform_kwargs is None:
+	if transform_kwargs is []:
 		transform_kwargs = [{} for _ in range(len(transforms))]
 	else:
-		assert len(transforms)==len(transform_kwargs), "Num transforms must equal num transform kwargs."
+		assert len(transforms)==len(transform_kwargs), "Num transforms must equal num kwargs."
 	
-	# apply data transformations
-	for transform, kwargs in zip(transforms, transform_kwargs):
+	# apply transform sequence
+	for i, (transform, kwargs) in enumerate(zip(transforms, transform_kwargs)):
 		data = data.apply(transform, **kwargs, axis=1)
+		for callback in callbacks:
+			callback(i, data)
 		if verbose:
 			print(data)
 	

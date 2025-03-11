@@ -24,14 +24,15 @@ def get_urbansound8k(
 		target_rate=24000,
 		dtype='float64',
 		truncation=None,
-		verbose=False
+		verbose=True
 	):
 	""" Load the UrbanSound8K data files into memory
 	https://urbansounddataset.weebly.com/download-urbansound8k.html
-	# type: (str, int, ste, int, bool) -> Tuple(pd.DataFrame, Dict[int:str], pd.DataFrame)
+	# type: (str, int, str, int, bool) -> Tuple(pd.DataFrame, Dict[int:str], pd.DataFrame)
 	
 	* skips incompatible formats
 	* converts to homogenous dtype
+	* if truncated, data is first shuffled
 	"""
 	
 	# load metadata
@@ -40,6 +41,7 @@ def get_urbansound8k(
 	
 	# truncate data (opt)
 	if truncation is not None:
+		metadata = metadata.sample(frac=1)
 		metadata = metadata[:truncation]
 	
 	# determine class names
@@ -63,13 +65,12 @@ def get_urbansound8k(
 def create_cache(
 		data,
 		class_names=None,
-		cache_root='.',
 		cache_dtype='float32',
+		cache_root='.',
 		cache_name='unnamed_cache'
 	):
 	""" Write data to cache
-	# type: (pd.DataFrame, Dict[int:str], str, int, str) -> bool
-	
+	# type: (pd.DataFrame, Dict[int:str], str, str, str) -> str
 	"""
 	
 	# determine cache location

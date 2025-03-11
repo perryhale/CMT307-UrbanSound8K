@@ -10,6 +10,7 @@ import pickle
 from library.random import split_key
 from library.data.io import reload_cache
 from library.data.pipeline import transform_data, partition_data, pad_and_slice_fn
+from library.data.descriptive import plot_tokenized_sample
 from library.models.transformer import get_denoising_transformer_encoder
 
 
@@ -32,8 +33,8 @@ tf.random.set_seed(K1)
 ### hyperparameters
 
 # architecture
-N_TOKENS = 512
-N_SAMPLES = 96_000 + (96_000 % N_TOKENS)
+N_TOKENS = 512 * 2
+N_SAMPLES = 96_000 + (N_TOKENS - (96_000 % N_TOKENS)) % N_TOKENS
 EMBED_DIM = 128
 HIDDEN_DIM = 256
 ENCODER_BLOCKS = 2
@@ -74,7 +75,10 @@ data = transform_data(
 	val_ratio=VAL_RATIO,
 	batch_size=BATCH_SIZE
 )
-	
+
+# plot sample
+plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
+
 # convert to tf.data.Dataset
 train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
 val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
@@ -83,6 +87,9 @@ test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_
 # memory cleanup
 del data
 del train_x; del val_x; del test_x
+
+# trace
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
 ### initialise model

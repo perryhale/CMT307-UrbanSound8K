@@ -8,8 +8,10 @@ import random
 import pickle
 
 from library.random import split_key
-from library.data import reload_cache
-from library.models import get_denoising_transformer_encoder, convert_dte_to_classifier
+from library.data.io import reload_cache
+from library.data.pipeline import transform_data, partition_data, pad_and_slice_fn, cls_token_fn
+from library.data.descriptive import plot_tokenized_sample
+from library.models.transformer import get_denoising_transformer_encoder, convert_dte_to_classifier
 
 
 ### setup
@@ -31,18 +33,18 @@ tf.random.set_seed(K1)
 ### hyperparameters
 
 # architecture
-N_TOKENS = 512
-N_SAMPLES = 96_000 + (96_000 % N_TOKENS)
+N_TOKENS = 512 * 2
+N_SAMPLES = 96_000 + (N_TOKENS - (96_000 % N_TOKENS)) % N_TOKENS
 EMBED_DIM = 128
 HIDDEN_DIM = 256
 ENCODER_BLOCKS = 2
 N_CLASSES = 10
 
 # training
-ETA = 1e-3
+ETA = 1e-5
 L2_LAM = 0. ###! unimplemented
-BATCH_SIZE = 32
-N_EPOCHS = 10
+BATCH_SIZE = 64
+N_EPOCHS = 100
 
 # data
 VAL_RATIO = 0.10
@@ -50,7 +52,6 @@ TEST_IDX = 1
 
 # tracing
 VERBOSE = True
-VERBOSE_LVL = 3
 
 assert (N_SAMPLES % N_TOKENS) == 0
 
@@ -60,25 +61,36 @@ assert (N_SAMPLES % N_TOKENS) == 0
 # load data
 data = reload_cache('data/urbansound8k_mono_24khz_float32.csv')
 
-# define transforms
-transforms=[pad_and_slice_fn, cls_token_fn]
-transform_kwargs=[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}, {}]
+# transform data
+data = transform_data(
+	data,
+	[pad_and_slice_fn, cls_token_fn],
+	[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}, {}]
+)
 
-# transform and partition data
-train_dataset, val_dataset, test_dataset = prepare_data(
+# partition data
+(train_x, train_y), (val_x, val_y), (test_x, test_y) = partition_data(
 	data,
 	test_idx=TEST_IDX,
 	val_ratio=VAL_RATIO,
-	batch_size=BATCH_SIZE,
-	transforms=transforms
-	transform_kwargs=transform_kwargsm
-	verbose=VERBOSE_LVL*int(VERBOSE)
+	batch_size=BATCH_SIZE
 )
+
+# plot sample
+plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
+
+# convert to tf.data.Dataset
+train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_y)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
+val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_y)).batch(BATCH_SIZE)
+test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_y)).batch(BATCH_SIZE)
 
 # memory cleanup
 del data
-del transforms
-del transform_kwargs
+del train_x; del val_x; del test_x
+del train_y; del val_y; del test_y
+
+# trace
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
 ### initialise model

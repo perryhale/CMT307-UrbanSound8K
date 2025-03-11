@@ -8,8 +8,10 @@ import random
 import pickle
 
 from library.random import split_key
-from library.data import reload_cache
-from library.models import get_denoising_transformer_encoder, convert_dte_to_classifier
+from library.data.io import reload_cache
+from library.data.pipeline import transform_data, partition_data, pad_and_slice_fn, cls_token_fn
+from library.data.descriptive import plot_tokenized_sample
+from library.models.transformer import get_denoising_transformer_encoder, convert_dte_to_classifier
 
 
 ### setup
@@ -31,18 +33,18 @@ tf.random.set_seed(K1)
 ### hyperparameters
 
 # architecture
-N_TOKENS = 512
-N_SAMPLES = 96_000 + (96_000 % N_TOKENS)
+N_TOKENS = 512 * 2
+N_SAMPLES = 96_000 + (N_TOKENS - (96_000 % N_TOKENS)) % N_TOKENS
 EMBED_DIM = 128
 HIDDEN_DIM = 256
 ENCODER_BLOCKS = 2
 N_CLASSES = 10
 
 # training
-ETA = 1e-3
+ETA = 1e-5
 L2_LAM = 0. ###! unimplemented
-BATCH_SIZE = 32
-N_EPOCHS = 10
+BATCH_SIZE = 64
+N_EPOCHS = 100
 
 # data
 VAL_RATIO = 0.10
@@ -59,45 +61,23 @@ assert (N_SAMPLES % N_TOKENS) == 0
 # load data
 data = reload_cache('data/urbansound8k_mono_24khz_float32.csv')
 
-# pad and slice sequences
-###! 3.90625ms per token with 96256 samples @24KHz
-data['data'] = data['data'].apply(lambda x : np.array(np.split(np.pad(x, (0, N_SAMPLES-len(x))) if len(x) < N_SAMPLES else x[:N_SAMPLES], N_TOKENS)))
-print(data)
-
-# substitute cls token at first index
-data['data'] = data['data'].apply(lambda x : np.concatenate((np.array([[np.sign((i%2)-0.5) for i in range(x.shape[1])]]), x[1:,:])))
-print(data)
+# transform data
+data = transform_data(
+	data,
+	[pad_and_slice_fn, cls_token_fn],
+	[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}, {}]
+)
 
 # partition data
-train_idx = (data['fold'] != TEST_IDX)
-test_idx = (data['fold'] == TEST_IDX)
-train_x = np.array(list(data[train_idx]['data']))
-train_y = np.array(list(data[train_idx]['class']))[:, np.newaxis]
-val_x = train_x[int(len(train_x)*(1-VAL_RATIO)):]
-val_y = train_y[int(len(train_y)*(1-VAL_RATIO)):]
-train_x = train_x[:int(len(train_x)*(1-VAL_RATIO))]
-train_y = train_y[:int(len(train_y)*(1-VAL_RATIO))]
-test_x = np.array(list(data[test_idx]['data']))
-test_y = np.array(list(data[test_idx]['class']))[:, np.newaxis]
+(train_x, train_y), (val_x, val_y), (test_x, test_y) = partition_data(
+	data,
+	test_idx=TEST_IDX,
+	val_ratio=VAL_RATIO,
+	batch_size=BATCH_SIZE
+)
 
 # plot sample
-x_sample = train_x[np.random.randint(0, len(train_x)-1)]
-plt.figure(figsize=(4,10))
-plt.imshow(x_sample)
-plt.savefig('train_model_input-001.png')
-plt.close()
-plt.figure(figsize=(10,3))
-plt.imshow(x_sample[:16])
-plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-plt.savefig('train_model_input-002.png')
-plt.subplots_adjust()
-plt.close()
-
-# trace
-print(train_x.shape, train_y.shape, 'train')
-print(val_x.shape, val_y.shape, 'val')
-print(test_x.shape, test_y.shape, 'test')
-print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
 
 # convert to tf.data.Dataset
 train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_y)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
@@ -106,11 +86,11 @@ test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_y)).batch(BATCH_
 
 # memory cleanup
 del data
-del x_sample
-del train_idx; del test_idx
-del train_x; del train_y
-del val_x; del val_y
-del test_x; del test_y
+del train_x; del val_x; del test_x
+del train_y; del val_y; del test_y
+
+# trace
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
 ### initialise model
