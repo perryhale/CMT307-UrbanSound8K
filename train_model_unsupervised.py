@@ -9,7 +9,7 @@ import pickle
 
 from library.random import split_key
 from library.data.io import reload_cache
-from library.data.pipeline import prepare_data, pad_and_slice_fn
+from library.data.pipeline import transform_data, partition_data, pad_and_slice_fn
 from library.models.transformer import get_denoising_transformer_encoder
 
 
@@ -60,23 +60,19 @@ assert (N_SAMPLES % N_TOKENS) == 0
 # load data
 data = reload_cache('data/urbansound8k_mono_24khz_float32.csv')
 
-# define transforms
-transforms = [pad_and_slice_fn]
-transform_kwargs = [{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}]
+# transform data
+data = transform_data(
+	data,
+	[pad_and_slice_fn],
+	[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}]
+)
 
-data = transform_pipeline(data, transforms, transform_kwargs)
-
-
-# transform and partition data
-(train_x, _), (val_x, _), (test_x, _) = prepare_data(
+# partition data
+(train_x, _), (val_x, _), (test_x, _) = partition_data(
 	data,
 	test_idx=TEST_IDX,
 	val_ratio=VAL_RATIO,
-	batch_size=BATCH_SIZE,
-	transforms=transforms,
-	transform_kwargs=transform_kwargs,
-	verbose=VERBOSE_LVL*int(VERBOSE),
-	plot_title=__file__.replace('.py','')
+	batch_size=BATCH_SIZE
 )
 	
 # convert to tf.data.Dataset
@@ -86,7 +82,6 @@ test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_
 
 # memory cleanup
 del data
-del transforms; del transform_kwargs
 del train_x; del val_x; del test_x
 
 

@@ -9,8 +9,6 @@ import abc
 def mono_avg_fn(row):
 	""" Convert dual to mono by channel averaging
 	# type: (pd.Series) -> pd.Series
-	
-	Preserves adjacent columns
 	"""
 	
 	# unpack
@@ -26,8 +24,6 @@ def mono_avg_fn(row):
 def rescale_fn(row, high=+1., low=-1.):
 	""" Min-Max scale raw audio sequence
 	# type: (pd.Series, float, float) -> pd.Series
-	
-	Preserves adjacent columns
 	"""
 	
 	# unpack
@@ -43,8 +39,6 @@ def rescale_fn(row, high=+1., low=-1.):
 def resample_fn(row, target_rate=24_000):
 	""" Resample entries in data column to target_rate using fourier method
 	# type: (pd.Series, int) -> pd.Series
-	
-	Preserves adjacent columns
 	"""
 	
 	# unpack
@@ -64,8 +58,6 @@ def pad_and_slice_fn(row, n_samples=96256, n_tokens=512):
 	""" Pad and slice raw audio sequences into raw tokens
 	# type: (pd.Series, int, int) -> pd.Series
 	
-	Preserves adjacent columns
-	
 	Default args produce 3.90625ms tokens @24KHz
 	n_samples must be divisible by n_tokens
 	"""
@@ -84,8 +76,6 @@ def pad_and_slice_fn(row, n_samples=96256, n_tokens=512):
 def cls_token_fn(row):
 	""" Insert cls token at first index of tokenized sequence
 	# type: (pd.Series) -> pd.Series
-	
-	Preserves adjacent columns
 	"""
 	
 	# unpack
@@ -98,12 +88,25 @@ def cls_token_fn(row):
 	return new_row
 
 
-def transform_pipeline(
+def transform_data(
 		data,
 		transforms,
-		transform_kwargs=[{}]
+		transform_kwargs=None,
 		verbose=False
 	):
+	""" Apply sequential transformations to dataframe rows
+	# type: (pd.DataFrame, List[Callable[[pd.Series, ...], pd.Series]], List[Dict[str, ...]], bool) -> pd.DataFrame
+	
+	+ data: pandas DataFrame with columns ['rate', 'data', 'fold', 'class']
+	+ transforms: list of preprocessing transforms, applied sequentially to data rows
+	+ transform_kwargs: list of keyword arguments for each transform
+	"""
+	
+	# handle kwargs
+	if transform_kwargs is None:
+		transform_kwargs = [{} for _ in range(len(transforms))]
+	else:
+		assert len(transforms)==len(transform_kwargs), "Num transforms must equal num transform kwargs."
 	
 	# apply data transformations
 	for transform, kwargs in zip(transforms, transform_kwargs):
@@ -114,41 +117,22 @@ def transform_pipeline(
 	return data
 
 
-
-
-def prepare_data(
+def partition_data(
 		data,
 		test_idx=1,
 		val_ratio=0.1,
 		batch_size=64,
-		transforms=[pad_and_slice_fn], # assumes pre-processed
-		transform_kwargs=[{}], # uses default args
-		plot_key=None,
-		plot_title='input_sample',
-		verbose=1
+		verbose=True
 	):
-	""" Prepare data with transformation pipeline and partitioning
-	# type: (pd.DataFrame, int, float, int, List[Callable[[pd.Series, ...], pd.Series]], List[Dict[str, ...]], int) -> Tuple[Tuple[np.ndarray]]
+	""" Partition data
+	# type: (pd.DataFrame, int, float, int, bool) -> Tuple[Tuple[np.ndarray]]
 	
 	+ data: pandas DataFrame with columns ['rate', 'data', 'fold', 'class']
 	+ test_idx: determines which data fold will be reserved for testing
 	+ val_ratio: determines what proportion of the traing dataset will be reserved for validation
 	+ batch_size: determines the size of the training batches
-	+ transforms: list of preprocessing transforms, applied sequentially to data rows
-	+ transform_kwargs: list of keyword arguments for each transform
-	+ verbose: enumerable argument
-		0: silent tracing
-		1: print basic statistics
-		2: print intermediate samples during transform
-		3: random sample plotting with plt
-	+ plot_title: prefix for plot filename if verbose>=3
+	+ verbose: print basic statistics
 	"""
-	
-	# apply data transformations
-	for transform, kwargs in zip(transforms, transform_kwargs):
-		data = data.apply(transform, **kwargs, axis=1)
-		if verbose > 1:
-			print(data)
 	
 	# partition data
 	train_idx = (data['fold'] != test_idx)
@@ -162,26 +146,8 @@ def prepare_data(
 	test_x = np.array(list(data[test_idx]['data']))
 	test_y = np.array(list(data[test_idx]['class']))[:, np.newaxis]
 	
-	# handle plotting kwargs
-	plot_key = (plot_kwargs['key'] if 'key' in plot_kwargs.keys() else None)
-	plot_title = (plot_kwargs['title'] if 'title' in plot_kwargs.keys() else 'sample_input')
-	
-	# plot sample
-	if verbose > 2:
-		x_sample = train_x[np.random.default_rng(seed=).integers(0, len(train_x)-1)]
-		plt.figure(figsize=(4,10))
-		plt.imshow(x_sample)
-		plt.savefig(f'{plot_title}-001.png')
-		plt.close()
-		plt.figure(figsize=(10,3))
-		plt.imshow(x_sample[:16])
-		plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-		plt.savefig(f'{plot_title}-002.png')
-		plt.subplots_adjust()
-		plt.close()
-	
 	# trace
-	if verbose > 0: 
+	if verbose: 
 		print(train_x.shape, train_y.shape, 'train')
 		print(val_x.shape, val_y.shape, 'val')
 		print(test_x.shape, test_y.shape, 'test')
