@@ -3,6 +3,7 @@ import pandas as pd
 import scipy as sp
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import abc
 
 
 def mono_avg_fn(row):
@@ -97,6 +98,24 @@ def cls_token_fn(row):
 	return new_row
 
 
+def transform_pipeline(
+		data,
+		transforms,
+		transform_kwargs=[{}]
+		verbose=False
+	):
+	
+	# apply data transformations
+	for transform, kwargs in zip(transforms, transform_kwargs):
+		data = data.apply(transform, **kwargs, axis=1)
+		if verbose:
+			print(data)
+	
+	return data
+
+
+
+
 def prepare_data(
 		data,
 		test_idx=1,
@@ -104,8 +123,9 @@ def prepare_data(
 		batch_size=64,
 		transforms=[pad_and_slice_fn], # assumes pre-processed
 		transform_kwargs=[{}], # uses default args
-		verbose=1,
-		plot_title='input'
+		plot_key=None,
+		plot_title='input_sample',
+		verbose=1
 	):
 	""" Prepare data with transformation pipeline and partitioning
 	# type: (pd.DataFrame, int, float, int, List[Callable[[pd.Series, ...], pd.Series]], List[Dict[str, ...]], int) -> Tuple[Tuple[np.ndarray]]
@@ -120,7 +140,7 @@ def prepare_data(
 		0: silent tracing
 		1: print basic statistics
 		2: print intermediate samples during transform
-		3: random sample plotting
+		3: random sample plotting with plt
 	+ plot_title: prefix for plot filename if verbose>=3
 	"""
 	
@@ -141,6 +161,24 @@ def prepare_data(
 	train_y = train_y[:int(len(train_y)*(1-val_ratio))]
 	test_x = np.array(list(data[test_idx]['data']))
 	test_y = np.array(list(data[test_idx]['class']))[:, np.newaxis]
+	
+	# handle plotting kwargs
+	plot_key = (plot_kwargs['key'] if 'key' in plot_kwargs.keys() else None)
+	plot_title = (plot_kwargs['title'] if 'title' in plot_kwargs.keys() else 'sample_input')
+	
+	# plot sample
+	if verbose > 2:
+		x_sample = train_x[np.random.default_rng(seed=).integers(0, len(train_x)-1)]
+		plt.figure(figsize=(4,10))
+		plt.imshow(x_sample)
+		plt.savefig(f'{plot_title}-001.png')
+		plt.close()
+		plt.figure(figsize=(10,3))
+		plt.imshow(x_sample[:16])
+		plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+		plt.savefig(f'{plot_title}-002.png')
+		plt.subplots_adjust()
+		plt.close()
 	
 	# trace
 	if verbose > 0: 

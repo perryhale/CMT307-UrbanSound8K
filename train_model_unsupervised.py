@@ -64,6 +64,9 @@ data = reload_cache('data/urbansound8k_mono_24khz_float32.csv')
 transforms = [pad_and_slice_fn]
 transform_kwargs = [{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}]
 
+data = transform_pipeline(data, transforms, transform_kwargs)
+
+
 # transform and partition data
 (train_x, _), (val_x, _), (test_x, _) = prepare_data(
 	data,
@@ -75,20 +78,6 @@ transform_kwargs = [{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}]
 	verbose=VERBOSE_LVL*int(VERBOSE),
 	plot_title=__file__.replace('.py','')
 )
-
-# plot sample
-if verbose > 2:
-	x_sample = train_x[np.random.randint(0, len(train_x)-1)]
-	plt.figure(figsize=(4,10))
-	plt.imshow(x_sample)
-	plt.savefig(f'{plot_title}-001.png')
-	plt.close()
-	plt.figure(figsize=(10,3))
-	plt.imshow(x_sample[:16])
-	plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-	plt.savefig(f'{plot_title}-002.png')
-	plt.subplots_adjust()
-	plt.close()
 	
 # convert to tf.data.Dataset
 train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
