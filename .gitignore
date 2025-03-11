@@ -1,13 +1,10 @@
+*.*
+!*.py
+
 data/*
 !data/UrbanSound8K/
 data/UrbanSound8K/*
 !data/UrbanSound8K/UrbanSound8K_README.txt
 
-library/__pycache__/
-
 jobs/
-
 specification/
-
-*.*
-!*.py
