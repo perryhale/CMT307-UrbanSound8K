@@ -59,7 +59,7 @@ def plot_distributions(stats_list, filename='data_description.png'):
 	plot_or_display_value(axes[2, 0], bit_rates, 'Bit-rate distribution', 'Bit rate (bps)', 'Frequency', 'green')
 	
 	# plot n samples
-	plot_or_display_value(axes[2, 1], lengths, 'Num-samples Distribution', 'Samples', 'Frequency', 'red')
+	plot_or_display_value(axes[2, 1], lengths, 'Num-samples distribution', 'Samples', 'Frequency', 'red')
 	
 	# finalize
 	#axes[2, 1].axis('off')

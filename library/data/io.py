@@ -21,14 +21,13 @@ def load_wav_fn(path, verbose=True):
 
 def get_urbansound8k(
 		root_path,
-		target_rate=24000,
 		dtype='float64',
 		truncation=None,
 		verbose=True
 	):
 	""" Load the UrbanSound8K data files into memory
 	https://urbansounddataset.weebly.com/download-urbansound8k.html
-	# type: (str, int, str, int, bool) -> Tuple(pd.DataFrame, Dict[int:str], pd.DataFrame)
+	# type: (str, str, int, bool) -> Tuple(pd.DataFrame, Dict[int:str], pd.DataFrame)
 	
 	* skips incompatible formats
 	* converts to homogenous dtype
@@ -47,12 +46,49 @@ def get_urbansound8k(
 	# determine class names
 	class_names = {k:v for k,v in sorted({int(k):v for k,v in zip(metadata['classID'].unique(), metadata['class'].unique())}.items())}
 	
-	# initialise dataframe
+	# populate dataframe
 	data = pd.DataFrame() # [rate, data, fold, class]
 	data['fold'] = metadata['fold']
 	data['class'] = metadata['classID']
+	data[['rate', 'data']] = metadata['path'].apply(load_wav_fn, args=(verbose,))
 	
-	# load data
+	# drop and cast
+	data = data.dropna()
+	data['data'] = data['data'].apply(lambda x : x.astype(dtype))
+	
+	return metadata, class_names, data
+
+
+get_audioset(
+		root_path,
+		dtype='float64',
+		truncation=None,
+		verbose=True
+	):
+	""" Load the AudioSet data files into memory
+	https://www.kaggle.com/datasets/zfturbo/audioset
+	# type: (str, str, int, bool) -> Tuple(pd.DataFrame, Dict[int:str], pd.DataFrame)
+	
+	* skips incompatible formats
+	* converts to homogenous dtype
+	* if truncated, data is first shuffled
+	"""
+	
+	# load metadata
+	metadata = pd.read_csv(f'{root_path}/train.csv')
+	metadata['path'] = metadata.apply(lambda row : f'{root_path}/train_wav{row["YTID"]}.wav', axis=1)
+	
+	# truncate data (opt)
+	if truncation is not None:
+		metadata = metadata.sample(frac=1)
+		metadata = metadata[:truncation]
+	
+	# determine class names
+	class_names = pd.read_csv(f'{root_path}/class_labels_indices.csv')
+	
+	# populate dataframe
+	data = pd.DataFrame() # [rate, data, class]
+	data['class'] = metadata['classID']
 	data[['rate', 'data']] = metadata['path'].apply(load_wav_fn, args=(verbose,))
 	
 	# drop and cast
