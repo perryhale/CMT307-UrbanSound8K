@@ -63,7 +63,7 @@ data = transform_data(
 # create cache
 cache_location = create_cache(
 	data,
-	class_names=class_names,
+#	class_names=class_names, ###! expects dictionary gets dataframe
 	cache_dtype=CACHE_DTYPE,
 	cache_root=OUTPUT_PATH,
 	cache_name=f'audioset_mono_{int(TARGET_RATE/1000)}khz'

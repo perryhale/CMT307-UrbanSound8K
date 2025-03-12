@@ -76,7 +76,7 @@ def get_audioset(
 	
 	# load metadata
 	metadata = pd.read_csv(f'{root_path}/train.csv')
-	metadata['path'] = metadata.apply(lambda row : f'{root_path}/train_wav{row["YTID"]}.wav', axis=1)
+	metadata['path'] = metadata.apply(lambda row : f'{root_path}/train_wav/{row["YTID"]}.wav', axis=1)
 	
 	# truncate data (opt)
 	if truncation is not None:
@@ -128,7 +128,6 @@ def create_cache(
 	except Exception as e:
 		print('Error writing cache:')
 		print(e)
-		return False
 
 
 def reload_cache(path, cache_dtype='INFER', rescale=True, rescale_kwargs={}):
