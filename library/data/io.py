@@ -59,7 +59,7 @@ def get_urbansound8k(
 	return metadata, class_names, data
 
 
-get_audioset(
+def get_audioset(
 		root_path,
 		dtype='float64',
 		truncation=None,
@@ -88,7 +88,7 @@ get_audioset(
 	
 	# populate dataframe
 	data = pd.DataFrame() # [rate, data, class]
-	data['class'] = metadata['classID']
+	data['class'] = metadata['positive_labels'].apply(lambda x : x.split(','))
 	data[['rate', 'data']] = metadata['path'].apply(load_wav_fn, args=(verbose,))
 	
 	# drop and cast

@@ -29,9 +29,9 @@ def debug_callback(i, df):
 		sample = df.iloc[EG_IDX,:]['data']
 		print(df)
 		print(f'[{EG_IDX}]', sample.dtype, sample.shape)
-		scipy.io.wavfile.write(f'{OUTPUT_PATH}/sample{EG_IDX}_t{i+1}.wav', rate, sample)
+		scipy.io.wavfile.write(f'{OUTPUT_PATH}/urbansound8k_sample{EG_IDX}_t{i+1}.wav', rate, sample)
 
-descriptive_callback = lambda i,df : plot_distributions(df.apply(wav_stats_fn, axis=1), filename=f'{OUTPUT_PATH}/data_description_t{i+1}.png')
+descriptive_callback = lambda i,df : plot_distributions(df.apply(wav_stats_fn, axis=1), filename=f'{OUTPUT_PATH}/urbansound8k_description_t{i+1}.png')
 
 
 ### transforms

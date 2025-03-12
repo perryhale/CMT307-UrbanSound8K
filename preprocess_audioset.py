@@ -1,11 +1,11 @@
 import scipy
 
-from library.data.io import get_urbansound8k, create_cache, reload_cache
+from library.data.io import get_audioset, create_cache, reload_cache
 from library.data.pipeline import transform_data, rescale_fn, mono_avg_fn, resample_fn, pad_and_slice_fn
 from library.data.descriptive import wav_stats_fn, plot_distributions
 
-""" https://urbansounddataset.weebly.com/download-urbansound8k.html """
-""" Create cache with debug and description actions"""
+""" https://www.kaggle.com/datasets/zfturbo/audioset """
+""" Create AudioSet cache with debug and description actions"""
 
 
 ### arguments
@@ -29,9 +29,9 @@ def debug_callback(i, df):
 		sample = df.iloc[EG_IDX,:]['data']
 		print(df)
 		print(f'[{EG_IDX}]', sample.dtype, sample.shape)
-		scipy.io.wavfile.write(f'{OUTPUT_PATH}/sample{EG_IDX}_t{i+1}.wav', rate, sample)
+		scipy.io.wavfile.write(f'{OUTPUT_PATH}/audioset_sample{EG_IDX}_t{i+1}.wav', rate, sample)
 
-descriptive_callback = lambda i,df : plot_distributions(df.apply(wav_stats_fn, axis=1), filename=f'{OUTPUT_PATH}/data_description_t{i+1}.png')
+descriptive_callback = lambda i,df : plot_distributions(df.apply(wav_stats_fn, axis=1), filename=f'{OUTPUT_PATH}/audioset_description_t{i+1}.png')
 
 
 ### transforms
@@ -43,7 +43,7 @@ transform_kwargs = [{}, {}, {'target_rate' : TARGET_RATE}]
 ### main
 
 # load data
-metadata, class_names, data = get_urbansound8k(
+metadata, class_names, data = get_audioset(
 	ROOT_PATH,
 	truncation=TRUNC if DEBUG else None,
 	dtype=CACHE_DTYPE,
