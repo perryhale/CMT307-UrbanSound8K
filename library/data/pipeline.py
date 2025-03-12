@@ -18,7 +18,7 @@ def mono_avg_fn(row):
 	
 	# transform
 	new_row = row.copy()
-	new_row['data'] = np.mean(data, axis=1) if data.shape[-1] > 1 else data
+	new_row['data'] = np.mean(data, axis=1) if len(data.shape) > 1 and data.shape[-1] > 1 else data
 	
 	return new_row
 
