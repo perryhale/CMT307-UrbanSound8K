@@ -1,9 +1,7 @@
 import numpy as np
 import pandas as pd
 import scipy as sp
-import tensorflow as tf
-import matplotlib.pyplot as plt
-import abc
+import math
 
 """ Preprocessing functions, applied over rows of dataframe
 """
@@ -75,6 +73,22 @@ def pad_and_slice_fn(row, n_samples=96256, n_tokens=512):
 	return new_row
 
 
+def expand_fn(row, n_samples=96256):
+	""" Pad and slice raw audio sequence into at least one slice of size slice_dim
+	# type: (pd.Series, int) -> pd.Series
+	"""
+	
+	# unpack
+	data = row['data']
+	n_padded = math.ceil(data.shape[0] / n_samples) * n_samples
+	n_slices = n_padded//n_samples
+	
+	# transform
+	new_row = pad_and_slice_fn(row, n_samples=n_padded, n_tokens=n_slices)
+	
+	return new_row
+
+
 def cls_token_fn(row):
 	""" Insert cls token at first index of tokenized sequence
 	# type: (pd.Series) -> pd.Series
@@ -88,6 +102,25 @@ def cls_token_fn(row):
 	new_row['data'] = np.concatenate((np.array([[np.sign((i % 2) - 0.5) for i in range(data.shape[1])]]), data[1:, :]))
 	
 	return new_row
+
+
+def expand_sequence_data(data):
+	""" Expand sliced audio data into new dataframe of slices
+	# type: (pd.DataFrame) -> pd.DataFrame
+	"""
+	
+	# populate list of rows
+	new_rows = []
+	for _, row in data.iterrows():
+		for sequence in row['data']:
+			new_row = row.copy().to_dict() # to drop indexing in copy
+			new_row['data'] = sequence
+			new_rows.append(new_row)
+	
+	# construct new dataframe
+	new_df = pd.DataFrame(new_rows)
+	
+	return new_df
 
 
 def transform_data(
@@ -132,6 +165,7 @@ def transform_data(
 def partition_data(
 		data,
 		test_idx=1,
+		test_ratio=0.25,
 		val_ratio=0.1,
 		batch_size=64,
 		verbose=True
@@ -141,10 +175,17 @@ def partition_data(
 	
 	+ data: pandas DataFrame with columns ['rate', 'data', 'fold', 'class']
 	+ test_idx: determines which data fold will be reserved for testing
+	+ test_ratio: ratio of dataset to reserve for testing if no fold information is provided, does not shuffle rows
 	+ val_ratio: determines what proportion of the traing dataset will be reserved for validation
 	+ batch_size: determines the size of the training batches
 	+ verbose: print basic statistics
 	"""
+	
+	# handle no fold information
+	if 'fold' not in data.keys():
+		n_folds = int(1/test_ratio)
+		#data['fold'] = pd.Series(np.random.randint(1, n_folds+1, data.shape[0]))
+		data['fold'] = np.tile(range(1, n_folds+1), len(data)//n_folds+1)[:len(data)] # deterministic expression
 	
 	# partition data
 	train_idx = (data['fold'] != test_idx)

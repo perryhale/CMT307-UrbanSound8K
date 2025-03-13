@@ -9,7 +9,13 @@ import pickle
 
 from library.random import split_key
 from library.data.io import reload_cache
-from library.data.pipeline import transform_data, partition_data, pad_and_slice_fn
+from library.data.pipeline import (
+	pad_and_slice_fn,
+	expand_fn,
+	expand_sequence_data,
+	transform_data,
+	partition_data
+)
 from library.data.descriptive import plot_tokenized_sample
 from library.models.transformer import get_denoising_transformer_encoder
 
@@ -59,7 +65,10 @@ assert (N_SAMPLES % N_TOKENS) == 0
 ### prepare data
 
 # load data
-data = reload_cache('data/urbansound8k_mono_24khz_float32.csv')
+data = reload_cache('data/audioset_mono_24khz_float32.csv')
+
+# expand sequences
+data = expand_sequence_data(data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1))
 
 # transform data
 data = transform_data(
