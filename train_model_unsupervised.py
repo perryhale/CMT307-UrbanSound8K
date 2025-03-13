@@ -12,11 +12,15 @@ from library.data.io import reload_cache
 from library.data.pipeline import (
 	pad_and_slice_fn,
 	expand_fn,
-	expand_sequence_data,
+	expand_data,
 	transform_data,
 	partition_data
 )
-from library.data.descriptive import plot_tokenized_sample
+from library.data.descriptive import (
+	wav_stats_fn,
+	plot_distributions,
+	plot_tokenized_sample
+)
 from library.models.transformer import get_denoising_transformer_encoder
 
 
@@ -68,7 +72,8 @@ assert (N_SAMPLES % N_TOKENS) == 0
 data = reload_cache('data/audioset_mono_24khz_float32.csv')
 
 # expand sequences
-data = expand_sequence_data(data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1))
+data = expand_data(data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1))
+plot_distributions(data.apply(wav_stats_fn, axis=1), filename='data/audioset_description_t5.png')
 
 # transform data
 data = transform_data(

@@ -104,7 +104,7 @@ def cls_token_fn(row):
 	return new_row
 
 
-def expand_sequence_data(data):
+def expand_data(data):
 	""" Expand sliced audio data into new dataframe of slices
 	# type: (pd.DataFrame) -> pd.DataFrame
 	"""
