@@ -5,32 +5,44 @@ from scipy.io import wavfile
 
 
 def wav_stats_fn(row):
-	rate, data = row['rate'], row['data']
+	""" Extract dictionary of audio statistics
+	# type: (pd.Series) -> pd.Series
+	"""
+	
+	# unpack
+	rate = row['rate']
+	data = row['data']
+	
+	# extract statistics
 	stats = {}
 	stats['channels'] = data.shape[1] if len(data.shape) > 1 else 1
 	stats['sample_width'] = data.itemsize
 	stats['sample_rate'] = rate
-	stats['num_samples'] = data.shape[0]
-	stats['duration_seconds'] = stats['num_samples'] / stats['sample_rate']
+	stats['n_samples'] = data.shape[0]
+	stats['duration'] = stats['n_samples'] / stats['sample_rate']
 	stats['bit_rate'] = stats['sample_rate'] * stats['channels'] * stats['sample_width'] * 8
+	
 	return stats
 
 
-def plot_distributions(stats_list, filename='data_description.png'):
+def plot_distributions(stats_column, filename='data_description.png'):
+	""" Plot distributions of audio statistics
+	# type: (pd.Series|List[Dict[str:float|int]], str) -> None
+	"""
 	
 	# extract values
-	durations = [stats['duration_seconds'] for stats in stats_list]
-	channels = [stats['channels'] for stats in stats_list]
-	sample_widths = [stats['sample_width'] for stats in stats_list]
-	sample_rates = [stats['sample_rate'] for stats in stats_list]
-	bit_rates = [stats['bit_rate'] for stats in stats_list]
-	lengths = [stats['num_samples'] for stats in stats_list]
+	durations = [stats['duration'] for stats in stats_column]
+	channels = [stats['channels'] for stats in stats_column]
+	sample_widths = [stats['sample_width'] for stats in stats_column]
+	sample_rates = [stats['sample_rate'] for stats in stats_column]
+	bit_rates = [stats['bit_rate'] for stats in stats_column]
+	lengths = [stats['n_samples'] for stats in stats_column]
 	
 	# init figure
 	fig, axes = plt.subplots(3, 2, figsize=(14, 10))
 	
 	# plotting function
-	def plot_or_display_value(ax, data, title, xlabel, ylabel, color):
+	def plot_hist_or_value(ax, data, title, xlabel, ylabel, color):
 		unique_data = np.unique(data)
 		ax.set_title(title)
 		ax.set_xlabel(xlabel)
@@ -43,34 +55,27 @@ def plot_distributions(stats_list, filename='data_description.png'):
 			ax.set_ylabel(ylabel)
 			ax.grid()
 	
-	# plot durations
-	plot_or_display_value(axes[0, 0], durations, 'Duration distribution', 'Duration (seconds)', 'Frequency', 'skyblue')
-	
-	# plot channels
-	plot_or_display_value(axes[0, 1], channels, 'Channels distribution', 'Channels', 'Frequency', 'lightgreen')
-	
-	# plot sample width
-	plot_or_display_value(axes[1, 0], sample_widths, 'Sample-width distribution', 'Sample width (bytes)', 'Frequency', 'orange')
-	
-	# plot sample rate
-	plot_or_display_value(axes[1, 1], sample_rates, 'Sample-rate distribution', 'Sample rate (samples/second)', 'Frequency', 'orange')
-	
-	# plot bit rate
-	plot_or_display_value(axes[2, 0], bit_rates, 'Bit-rate distribution', 'Bit rate (bps)', 'Frequency', 'green')
-	
-	# plot n samples
-	plot_or_display_value(axes[2, 1], lengths, 'Num-samples distribution', 'Samples', 'Frequency', 'red')
+	# plot distributions
+	plot_hist_or_value(axes[0, 0], durations, 'Duration distribution', 'Duration (seconds)', 'Frequency', 'skyblue')
+	plot_hist_or_value(axes[0, 1], channels, 'Channels distribution', 'Channels', 'Frequency', 'lightgreen')
+	plot_hist_or_value(axes[1, 0], sample_widths, 'Sample-width distribution', 'Sample width (bytes)', 'Frequency', 'orange')
+	plot_hist_or_value(axes[1, 1], sample_rates, 'Sample-rate distribution', 'Sample rate (samples/second)', 'Frequency', 'orange')
+	plot_hist_or_value(axes[2, 0], bit_rates, 'Bit-rate distribution', 'Bit rate (bytes/second)', 'Frequency', 'green')
+	plot_hist_or_value(axes[2, 1], lengths, 'Num-samples distribution', 'Samples', 'Frequency', 'red')
 	
 	# finalize
-	#axes[2, 1].axis('off')
 	plt.tight_layout()
 	plt.savefig(filename)
+	plt.close()
 
 
-def plot_tokenized_sample(data_x, prefix='unnamed'):
+def plot_tokenized_sample(data_x, prefix='unnamed', key=None):
+	""" Plot randomly selected 2d sample and header
+	# type: (np.ndarray, str, int) -> None
+	"""
 	
 	# select sample
-	x_sample = data_x[np.random.randint(0, len(data_x)-1)]
+	x_sample = data_x[np.random.default_rng(seed=key).integers(0, len(data_x))]
 	
 	# plot full sample
 	plt.figure(figsize=(4,10))
