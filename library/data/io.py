@@ -84,12 +84,14 @@ def get_audioset(
 		metadata = metadata[:truncation]
 	
 	# determine class names
-	class_names = pd.read_csv(f'{root_path}/class_labels_indices.csv')
+	class_metadata = pd.read_csv(f'{root_path}/class_labels_indices.csv')
+	class_mid_to_idx = dict(zip(class_metadata['mid'], class_metadata['index']))
+	class_names = dict(zip(class_metadata['index'], class_metadata['display_name']))
 	
 	# populate dataframe
 	data = pd.DataFrame() # [rate, data, class]
-	data['class'] = metadata['positive_labels'].apply(lambda x : x.split(','))
 	data[['rate', 'data']] = metadata['path'].apply(load_wav_fn, args=(verbose,))
+	data['class'] = metadata['positive_labels'].apply(lambda x : [class_mid_to_idx[mid] for mid in x.split(',')]) # class_mid_to_idx.get(mid, None)
 	
 	# drop and cast
 	data = data.dropna()
@@ -113,7 +115,6 @@ def create_cache(
 	cache_location = f'{cache_root}/{cache_name}_{cache_dtype}.csv'
 	
 	try:
-		
 		# cache class names
 		if class_names is not None:
 			class_names_df = pd.DataFrame.from_dict(class_names, orient='index')
@@ -127,29 +128,34 @@ def create_cache(
 	
 	except Exception as e:
 		print('Error writing cache:')
-		print(e)
+		raise
 
 
 def reload_cache(path, cache_dtype='INFER', rescale=True, rescale_kwargs={}):
-	""" Load cached 'data' csv file into memory
-	# type: (str, str, bool) -> pd.DataFrame
+	""" Read data from cache into memory
+	# type: (str, str, bool, Dict[str:any]) -> pd.DataFrame
 	
 	Infers data type from file name by default
 	"""
 	
-	# infer dtype
-	if cache_dtype == 'INFER':
-		cache_dtype = path.replace('.csv','').split('_')[-1]
+	try:
+		# infer dtype
+		if cache_dtype == 'INFER':
+			cache_dtype = path.replace('.csv','').split('_')[-1]
+		
+		# load
+		data = pd.read_csv(path)
+		data['data'] = data['data'].apply(lambda x : np.frombuffer(base64.b64decode(x), dtype=cache_dtype))
+		
+		# rescale (opt)
+		if rescale:
+			data = data.apply(rescale_fn, **rescale_kwargs, axis=1)
+		
+		return data
 	
-	# load
-	data = pd.read_csv(path)
-	data['data'] = data['data'].apply(lambda x : np.frombuffer(base64.b64decode(x), dtype=cache_dtype))
-	
-	# rescale (opt)
-	if rescale:
-		data = data.apply(rescale_fn, **rescale_kwargs, axis=1)
-	
-	return data
+	except Exception as e:
+		print('Error reading cache:')
+		raise
 
 
 # # low pass filter + decimate undersampling

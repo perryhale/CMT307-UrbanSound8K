@@ -3,8 +3,6 @@ import pandas as pd
 import scipy as sp
 import math
 
-""" Preprocessing functions, applied over rows of dataframe
-"""
 
 def mono_avg_fn(row):
 	""" Convert dual+ to mono by channel averaging
@@ -16,7 +14,8 @@ def mono_avg_fn(row):
 	
 	# transform
 	new_row = row.copy()
-	new_row['data'] = np.mean(data, axis=1) if len(data.shape) > 1 and data.shape[-1] > 1 else data
+	#new_row['data'] = np.mean(data, axis=1) if len(data.shape) > 1 and data.shape[-1] > 1 else data
+	new_row['data'] = np.mean(data, axis=1) if (len(data.shape) > 1) else data # redundant clause, needs testing
 	
 	return new_row
 
@@ -113,7 +112,7 @@ def expand_data(data):
 	new_rows = []
 	for _, row in data.iterrows():
 		for sequence in row['data']:
-			new_row = row.copy().to_dict() # to drop indexing in copy
+			new_row = row.copy().to_dict() # to drop indexing from copy
 			new_row['data'] = sequence
 			new_rows.append(new_row)
 	
