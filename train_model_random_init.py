@@ -9,8 +9,19 @@ import pickle
 
 from library.random import split_key
 from library.data.io import reload_cache
-from library.data.pipeline import transform_data, partition_data, pad_and_slice_fn, cls_token_fn
-from library.data.descriptive import plot_tokenized_sample
+from library.data.pipeline import (
+	pad_and_slice_fn,
+	cls_token_fn,
+	expand_fn,
+	expand_data,
+	transform_data,
+	partition_data
+)
+from library.data.descriptive import (
+	wav_stats_fn,
+	plot_distributions,
+	plot_tokenized_sample
+)
 from library.models.transformer import get_denoising_transformer_encoder, convert_dte_to_classifier
 
 
@@ -33,12 +44,14 @@ tf.random.set_seed(K1)
 ### hyperparameters
 
 # architecture
-N_TOKENS = 512 * 2
-N_SAMPLES = 96_000 + (N_TOKENS - (96_000 % N_TOKENS)) % N_TOKENS
+N_TOKENS = 512
+N_SAMPLES = 48_000 + (N_TOKENS - (48_000 % N_TOKENS)) % N_TOKENS
 EMBED_DIM = 128
 HIDDEN_DIM = 256
-ENCODER_BLOCKS = 2
-N_CLASSES = 10
+ENCODER_BLOCKS = 4
+N_HEADS = 8
+DROPOUT = 0.1
+NOISE_SD = 0.2
 
 # training
 ETA = 1e-5
@@ -61,11 +74,18 @@ assert (N_SAMPLES % N_TOKENS) == 0
 # load data
 data = reload_cache('data/urbansound8k_mono_24khz_float32.csv')
 
+# expand sequences
+data = expand_data(
+	data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1)
+)
+plot_distributions(data.apply(wav_stats_fn, axis=1), filename='data/urbansound8k_description_t5.png')
+
 # transform data
 data = transform_data(
 	data,
 	[pad_and_slice_fn, cls_token_fn],
-	[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}, {}]
+	[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}, {}],
+	verbose=VERBOSE
 )
 
 # partition data
@@ -73,7 +93,7 @@ data = transform_data(
 	data,
 	test_idx=TEST_IDX,
 	val_ratio=VAL_RATIO,
-	batch_size=BATCH_SIZE
+	verbose=VERBOSE
 )
 
 # plot sample
@@ -104,7 +124,10 @@ model = get_denoising_transformer_encoder(
 	N_SAMPLES//N_TOKENS,
 	EMBED_DIM,
 	HIDDEN_DIM,
-	ENCODER_BLOCKS
+	ENCODER_BLOCKS,
+	n_heads=N_HEADS,
+	dropout=DROPOUT,
+	noise_sd=NOISE_SD,
 )
 model = convert_dte_to_classifier(
 	model, 

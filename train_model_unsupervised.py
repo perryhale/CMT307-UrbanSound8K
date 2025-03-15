@@ -53,7 +53,7 @@ DROPOUT = 0.1
 NOISE_SD = 0.2
 
 # training
-ETA = 1e-4
+ETA = 1e-5
 L2_LAM = 0. ###! unimplemented
 BATCH_SIZE = 32
 N_EPOCHS = 30
@@ -71,56 +71,49 @@ assert (N_SAMPLES % N_TOKENS) == 0
 ### prepare data
 
 # load data
+print('Load cache..')
 data = reload_cache('data/audioset_mono_24khz_float32.csv')
-print('Reloaded cache')
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # expand sequences
+print('Expand sequences..')
 data = expand_data(
-	data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1),
-	verbose=VERBOSE
+	data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1)
 )
 plot_distributions(data.apply(wav_stats_fn, axis=1), filename='data/audioset_description_t5.png')
-print('Expanded sequences')
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # transform data
+print('Apply transforms..')
 data = transform_data(
 	data,
 	[pad_and_slice_fn],
 	[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}],
 	verbose=VERBOSE
 )
-print('Applied transformations')
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # partition data
+print('Partition data..')
 (train_x, _), (val_x, _), (test_x, _) = partition_data(
 	data,
 	test_ratio=TEST_RATIO,
 	val_ratio=VAL_RATIO,
 	verbose=VERBOSE
 )
-print('Partitioned data')
+plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
-# plot sample
-plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
-
 # convert to tf.data.Dataset
-###! does not fit in GPU memory
+print('Convert to Dataset..')
 train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
 val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
 test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_SIZE)
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # memory cleanup
 del data
-###! using ndarray instead of datasets to mitigate mem overload
 del train_x; del val_x; del test_x
-
-# trace
-print('Finished pre-process')
-print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
 ### initialise model
@@ -157,12 +150,8 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 train_history = model.fit(
 	train_dataset,
-	# train_x,
-	# train_x,
-	# batch_size=BATCH_SIZE,
 	epochs=N_EPOCHS,
 	validation_data=val_dataset,
-	# validation_data=(val_x, val_x),
 	callbacks=[checkpoint_callback],
 	verbose=int(VERBOSE)
 ).history
@@ -176,9 +165,6 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 model.load_weights(f'{model.name}.weights.h5')
 test_history = model.evaluate(
 	test_dataset,
-	# test_x,
-	# test_x,
-	# batch_size=BATCH_SIZE,
 	verbose=int(VERBOSE),
 	return_dict=True
 )

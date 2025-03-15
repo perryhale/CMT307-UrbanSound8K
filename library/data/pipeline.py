@@ -105,14 +105,10 @@ def cls_token_fn(row):
 	return new_row
 
 
-def expand_data(data, verbose=True):
+def expand_data(data):
 	""" Expand sliced audio data into new dataframe of slices
-	# type: (pd.DataFrame, bool) -> pd.DataFrame
+	# type: (pd.DataFrame) -> pd.DataFrame
 	"""
-	
-	# trace
-	if verbose:
-		print(data)
 	
 	# populate list of rows
 	new_rows = []
@@ -123,13 +119,9 @@ def expand_data(data, verbose=True):
 			new_rows.append(new_row)
 	
 	# construct new dataframe
-	new_df = pd.DataFrame(new_rows)
+	data = pd.DataFrame(new_rows)
 	
-	# trace
-	if verbose:
-		print(new_df)
-	
-	return new_df
+	return data
 
 
 def transform_data(
@@ -160,10 +152,6 @@ def transform_data(
 	else:
 		assert len(transforms)==len(transform_kwargs), "Num transforms must equal num kwargs."
 	
-	# trace
-	if verbose:
-		print(data)
-	
 	# apply transform sequence
 	for i, (transform, kwargs) in enumerate(zip(transforms, transform_kwargs)):
 		
@@ -174,7 +162,7 @@ def transform_data(
 				return transform(row, **kwargs)
 			except Exception as e:
 				if verbose:
-					print(f'Error in transform {i+1} {transform}')
+					print(f'Error in transform {i+1} {transform}, skipping row.')
 					print(f' -> Got argument {type(row)}: {row}')
 					print(f' -> Got exception: {e}')
 				row_copy = row.copy()
@@ -187,10 +175,6 @@ def transform_data(
 		# run callback
 		for callback in callbacks:
 			callback(i, data)
-	
-	# trace
-	if verbose:
-		print(data)
 	
 	return data
 
