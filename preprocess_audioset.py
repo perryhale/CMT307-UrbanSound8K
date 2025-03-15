@@ -22,7 +22,8 @@ CACHE_DTYPE = 'float32'
 VERBOSE = True
 
 DEBUG = True
-TRUNC = 512
+###! max 19,644 rows
+TRUNC = 1.
 EG_IDX = 5
 
 
@@ -50,8 +51,8 @@ transform_kwargs = [{}, {}, {'target_rate' : TARGET_RATE}]
 # load data
 metadata, class_names, data = get_audioset(
 	ROOT_PATH,
-	truncation=TRUNC if DEBUG else None,
 	dtype=CACHE_DTYPE,
+	truncation=TRUNC if DEBUG else None,
 	verbose=VERBOSE
 )
 descriptive_callback(-1, data)
@@ -62,13 +63,14 @@ data = transform_data(
 	data,
 	transforms,
 	transform_kwargs,
-	[descriptive_callback, debug_callback]
+	[descriptive_callback, debug_callback],
+	verbose=VERBOSE
 )
 
 # create cache
 cache_location = create_cache(
 	data,
-	class_names=class_names, ###! expects dictionary gets dataframe (should be fixed needs testing)
+	class_names=class_names,
 	cache_dtype=CACHE_DTYPE,
 	cache_root=OUTPUT_PATH,
 	cache_name=f'audioset_mono_{int(TARGET_RATE/1000)}khz'

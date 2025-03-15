@@ -3,6 +3,9 @@ import pandas as pd
 import scipy as sp
 import math
 
+# import multiprocessing
+# from pandarallel import pandarallel; pandarallel.initialize(nb_workers=multiprocessing.cpu_count())
+
 
 def mono_avg_fn(row):
 	""" Convert dual+ to mono by channel averaging
@@ -14,13 +17,12 @@ def mono_avg_fn(row):
 	
 	# transform
 	new_row = row.copy()
-	#new_row['data'] = np.mean(data, axis=1) if len(data.shape) > 1 and data.shape[-1] > 1 else data
-	new_row['data'] = np.mean(data, axis=1) if (len(data.shape) > 1) else data # redundant clause, needs testing
+	new_row['data'] = np.mean(data, axis=1) if (len(data.shape) > 1) else data
 	
 	return new_row
 
 
-def rescale_fn(row, high=+1., low=-1.):
+def rescale_fn(row, high=+1., low=-1., epsilon=1e-9):
 	""" Min-Max scale raw audio sequence
 	# type: (pd.Series, float, float) -> pd.Series
 	"""
@@ -30,7 +32,7 @@ def rescale_fn(row, high=+1., low=-1.):
 	
 	# transform
 	new_row = row.copy()
-	new_row['data'] = low+(high-low) * (data-np.min(data)) / (np.max(data)-np.min(data))
+	new_row['data'] = low+(high-low) * (data-np.min(data)) / (np.max(data)-np.min(data)+epsilon)
 	
 	return new_row
 
@@ -103,10 +105,14 @@ def cls_token_fn(row):
 	return new_row
 
 
-def expand_data(data):
+def expand_data(data, verbose=True):
 	""" Expand sliced audio data into new dataframe of slices
-	# type: (pd.DataFrame) -> pd.DataFrame
+	# type: (pd.DataFrame, bool) -> pd.DataFrame
 	"""
+	
+	# trace
+	if verbose:
+		print(data)
 	
 	# populate list of rows
 	new_rows = []
@@ -119,6 +125,10 @@ def expand_data(data):
 	# construct new dataframe
 	new_df = pd.DataFrame(new_rows)
 	
+	# trace
+	if verbose:
+		print(new_df)
+	
 	return new_df
 
 
@@ -127,18 +137,18 @@ def transform_data(
 		transforms,
 		transform_kwargs=[],
 		callbacks=[],
-		verbose=False
+		verbose=True
 	):
 	""" Apply sequential transformations to dataframe rows
 	# type: (
-		pd.DataFrame, 
-		List[Callable[[pd.Series, ...], pd.Series]], 
-		List[Dict[str, ...]], 
-		List[Callable[[int, pd.Series], None]], 
+		pd.DataFrame,
+		List[Callable[[pd.Series, ...], pd.Series]],
+		List[Dict[str, ...]],
+		List[Callable[[int, pd.Series], None]],
 		bool
 	) -> pd.DataFrame
 	
-	+ data: pandas DataFrame with columns ['rate', 'data', 'fold', 'class']
+	+ data: pandas DataFrame with minumum columns ['rate', 'data', 'class'] + ['fold'] + ...
 	+ transforms: list of preprocessing transforms. assmues (pd.Series, **) -> pd.Series applied to data rows
 	+ transform_kwargs: list of keyword arguments for each transform
 	+ callbacks: functions called every transform on data, each takes int argmuent representing transform index and current data object
@@ -150,13 +160,37 @@ def transform_data(
 	else:
 		assert len(transforms)==len(transform_kwargs), "Num transforms must equal num kwargs."
 	
+	# trace
+	if verbose:
+		print(data)
+	
 	# apply transform sequence
 	for i, (transform, kwargs) in enumerate(zip(transforms, transform_kwargs)):
-		data = data.apply(transform, **kwargs, axis=1)
+		
+		# define exception wrapper
+		# type: (pd.Series) -> pd.Series
+		def exception_wrapper(row):
+			try:
+				return transform(row, **kwargs)
+			except Exception as e:
+				if verbose:
+					print(f'Error in transform {i+1} {transform}')
+					print(f' -> Got argument {type(row)}: {row}')
+					print(f' -> Got exception: {e}')
+				row_copy = row.copy()
+				row_copy[:] = np.nan
+				return row_copy
+		
+		# map transformation over dataframe
+		data = data.apply(exception_wrapper, axis=1).dropna()
+		
+		# run callback
 		for callback in callbacks:
 			callback(i, data)
-		if verbose:
-			print(data)
+	
+	# trace
+	if verbose:
+		print(data)
 	
 	return data
 
@@ -166,17 +200,15 @@ def partition_data(
 		test_idx=1,
 		test_ratio=0.25,
 		val_ratio=0.1,
-		batch_size=64,
 		verbose=True
 	):
 	""" Partition data
-	# type: (pd.DataFrame, int, float, int, bool) -> Tuple[Tuple[np.ndarray]]
+	# type: (pd.DataFrame, int, float, float, bool) -> Tuple[Tuple[np.ndarray]]
 	
 	+ data: pandas DataFrame with columns ['rate', 'data', 'fold', 'class']
 	+ test_idx: determines which data fold will be reserved for testing
 	+ test_ratio: ratio of dataset to reserve for testing if no fold information is provided, does not shuffle rows
 	+ val_ratio: determines what proportion of the traing dataset will be reserved for validation
-	+ batch_size: determines the size of the training batches
 	+ verbose: print basic statistics
 	"""
 	

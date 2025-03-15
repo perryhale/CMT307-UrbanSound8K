@@ -43,25 +43,27 @@ tf.random.set_seed(K1)
 ### hyperparameters
 
 # architecture
-N_TOKENS = 512 * 2
-N_SAMPLES = 96_000 + (N_TOKENS - (96_000 % N_TOKENS)) % N_TOKENS
+N_TOKENS = 256
+N_SAMPLES = 24_000 + (N_TOKENS - (24_000 % N_TOKENS)) % N_TOKENS
 EMBED_DIM = 128
 HIDDEN_DIM = 256
-ENCODER_BLOCKS = 2
+ENCODER_BLOCKS = 4
+N_HEADS = 8
+DROPOUT = 0.1
+NOISE_SD = 0.2
 
 # training
-ETA = 1e-5
+ETA = 1e-4
 L2_LAM = 0. ###! unimplemented
-BATCH_SIZE = 64
-N_EPOCHS = 100
+BATCH_SIZE = 32
+N_EPOCHS = 30
 
 # data
 VAL_RATIO = 0.10
-TEST_IDX = 1
+TEST_RATIO = 0.25
 
 # tracing
 VERBOSE = True
-VERBOSE_LVL = 2
 
 assert (N_SAMPLES % N_TOKENS) == 0
 
@@ -70,39 +72,54 @@ assert (N_SAMPLES % N_TOKENS) == 0
 
 # load data
 data = reload_cache('data/audioset_mono_24khz_float32.csv')
+print('Reloaded cache')
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # expand sequences
-data = expand_data(data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1))
+data = expand_data(
+	data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1),
+	verbose=VERBOSE
+)
 plot_distributions(data.apply(wav_stats_fn, axis=1), filename='data/audioset_description_t5.png')
+print('Expanded sequences')
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # transform data
 data = transform_data(
 	data,
 	[pad_and_slice_fn],
-	[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}]
+	[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}],
+	verbose=VERBOSE
 )
+print('Applied transformations')
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # partition data
 (train_x, _), (val_x, _), (test_x, _) = partition_data(
 	data,
-	test_idx=TEST_IDX,
+	test_ratio=TEST_RATIO,
 	val_ratio=VAL_RATIO,
-	batch_size=BATCH_SIZE
+	verbose=VERBOSE
 )
+print('Partitioned data')
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # plot sample
 plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
 
 # convert to tf.data.Dataset
-train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
-val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
-test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_SIZE)
+###! does not fit in GPU memory
+# train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
+# val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
+# test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_SIZE)
 
 # memory cleanup
 del data
-del train_x; del val_x; del test_x
+###! using ndarray instead of datasets to mitigate mem overload
+# del train_x; del val_x; del test_x
 
 # trace
+print('Finished pre-process')
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
@@ -117,7 +134,10 @@ model = get_denoising_transformer_encoder(
 	N_SAMPLES//N_TOKENS,
 	EMBED_DIM,
 	HIDDEN_DIM,
-	ENCODER_BLOCKS
+	ENCODER_BLOCKS,
+	n_heads=N_HEADS,
+	dropout=DROPOUT,
+	noise_sd=NOISE_SD,
 )
 model.compile(loss=loss_fn, optimizer=optimizer, metrics=['root_mean_squared_error'])
 model.summary()
@@ -136,9 +156,13 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 ### train model
 
 train_history = model.fit(
-	train_dataset,
+	# train_dataset,
+	train_x,
+	train_x,
+	batch_size=BATCH_SIZE,
 	epochs=N_EPOCHS,
-	validation_data=val_dataset,
+	# validation_data=val_dataset,
+	validation_data=(val_x, val_x),
 	callbacks=[checkpoint_callback],
 	verbose=int(VERBOSE)
 ).history
@@ -151,7 +175,10 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 model.load_weights(f'{model.name}.weights.h5')
 test_history = model.evaluate(
-	test_dataset,
+	# test_dataset,
+	test_x,
+	test_x,
+	batch_size=BATCH_SIZE,
 	verbose=int(VERBOSE),
 	return_dict=True
 )

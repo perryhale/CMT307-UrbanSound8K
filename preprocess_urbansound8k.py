@@ -1,7 +1,12 @@
 import scipy
 
 from library.data.io import get_urbansound8k, create_cache, reload_cache
-from library.data.pipeline import transform_data, rescale_fn, mono_avg_fn, resample_fn, pad_and_slice_fn
+from library.data.pipeline import (
+	rescale_fn,
+	mono_avg_fn,
+	resample_fn,
+	transform_data
+)
 from library.data.descriptive import wav_stats_fn, plot_distributions
 
 """ https://urbansounddataset.weebly.com/download-urbansound8k.html """
@@ -17,7 +22,7 @@ CACHE_DTYPE = 'float32'
 VERBOSE = True
 
 DEBUG = True
-TRUNC = 512
+TRUNC = 1.
 EG_IDX = 5
 
 
@@ -45,8 +50,8 @@ transform_kwargs = [{}, {}, {'target_rate' : TARGET_RATE}]
 # load data
 metadata, class_names, data = get_urbansound8k(
 	ROOT_PATH,
-	truncation=TRUNC if DEBUG else None,
 	dtype=CACHE_DTYPE,
+	truncation=TRUNC if DEBUG else None,
 	verbose=VERBOSE
 )
 descriptive_callback(-1, data)
@@ -57,7 +62,8 @@ data = transform_data(
 	data,
 	transforms,
 	transform_kwargs,
-	[descriptive_callback, debug_callback]
+	[descriptive_callback, debug_callback],
+	verbose=VERBOSE
 )
 
 # create cache

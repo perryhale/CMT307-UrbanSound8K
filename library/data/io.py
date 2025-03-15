@@ -2,6 +2,10 @@ import numpy as np
 import pandas as pd
 import scipy as sp
 import base64
+
+# import multiprocessing
+# from pandarallel import pandarallel; pandarallel.initialize(nb_workers=multiprocessing.cpu_count())
+
 from .pipeline import rescale_fn
 
 
@@ -23,11 +27,11 @@ def get_urbansound8k(
 		root_path,
 		dtype='float64',
 		truncation=None,
-		verbose=True
+		verbose=False
 	):
 	""" Load the UrbanSound8K data files into memory
 	https://urbansounddataset.weebly.com/download-urbansound8k.html
-	# type: (str, str, int, bool) -> Tuple(pd.DataFrame, Dict[int:str], pd.DataFrame)
+	# type: (str, str, float, bool) -> Tuple(pd.DataFrame, Dict[int:str], pd.DataFrame)
 	
 	* skips incompatible formats
 	* converts to homogenous dtype
@@ -40,8 +44,8 @@ def get_urbansound8k(
 	
 	# truncate data (opt)
 	if truncation is not None:
-		metadata = metadata.sample(frac=1)
-		metadata = metadata[:truncation]
+		metadata = metadata.sample(frac=truncation)
+		#metadata = metadata[:truncation] ###! (opt)
 	
 	# determine class names
 	class_names = {k:v for k,v in sorted({int(k):v for k,v in zip(metadata['classID'].unique(), metadata['class'].unique())}.items())}
@@ -63,11 +67,11 @@ def get_audioset(
 		root_path,
 		dtype='float64',
 		truncation=None,
-		verbose=True
+		verbose=False
 	):
 	""" Load the AudioSet data files into memory
 	https://www.kaggle.com/datasets/zfturbo/audioset
-	# type: (str, str, int, bool) -> Tuple(pd.DataFrame, Dict[int:str], pd.DataFrame)
+	# type: (str, str, float, bool) -> Tuple(pd.DataFrame, Dict[int:str], pd.DataFrame)
 	
 	* skips incompatible formats
 	* converts to homogenous dtype
@@ -80,8 +84,8 @@ def get_audioset(
 	
 	# truncate data (opt)
 	if truncation is not None:
-		metadata = metadata.sample(frac=1)
-		metadata = metadata[:truncation]
+		metadata = metadata.sample(frac=truncation)
+		#metadata = metadata[:truncation] ###! (opt)
 	
 	# determine class names
 	class_metadata = pd.read_csv(f'{root_path}/class_labels_indices.csv')
