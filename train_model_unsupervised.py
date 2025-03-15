@@ -43,8 +43,8 @@ tf.random.set_seed(K1)
 ### hyperparameters
 
 # architecture
-N_TOKENS = 256
-N_SAMPLES = 24_000 + (N_TOKENS - (24_000 % N_TOKENS)) % N_TOKENS
+N_TOKENS = 512
+N_SAMPLES = 48_000 + (N_TOKENS - (48_000 % N_TOKENS)) % N_TOKENS
 EMBED_DIM = 128
 HIDDEN_DIM = 256
 ENCODER_BLOCKS = 4
@@ -109,14 +109,14 @@ plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
 
 # convert to tf.data.Dataset
 ###! does not fit in GPU memory
-# train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
-# val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
-# test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_SIZE)
+train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
+val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
+test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_SIZE)
 
 # memory cleanup
 del data
 ###! using ndarray instead of datasets to mitigate mem overload
-# del train_x; del val_x; del test_x
+del train_x; del val_x; del test_x
 
 # trace
 print('Finished pre-process')
@@ -156,13 +156,13 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 ### train model
 
 train_history = model.fit(
-	# train_dataset,
-	train_x,
-	train_x,
-	batch_size=BATCH_SIZE,
+	train_dataset,
+	# train_x,
+	# train_x,
+	# batch_size=BATCH_SIZE,
 	epochs=N_EPOCHS,
-	# validation_data=val_dataset,
-	validation_data=(val_x, val_x),
+	validation_data=val_dataset,
+	# validation_data=(val_x, val_x),
 	callbacks=[checkpoint_callback],
 	verbose=int(VERBOSE)
 ).history
@@ -175,10 +175,10 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 model.load_weights(f'{model.name}.weights.h5')
 test_history = model.evaluate(
-	# test_dataset,
-	test_x,
-	test_x,
-	batch_size=BATCH_SIZE,
+	test_dataset,
+	# test_x,
+	# test_x,
+	# batch_size=BATCH_SIZE,
 	verbose=int(VERBOSE),
 	return_dict=True
 )
