@@ -127,14 +127,10 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 # convert to tf.data.Dataset
 print('Convert to Dataset..')
 
-# train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
-# val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
-# test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_SIZE)
-
-def dataset_gen(data_x, data_y, batch_size):
+def dataset_gen(data_x, data_y, batch_size, shuffle=True):
 	n_samples = len(data_x)
 	while True:
-		shuffle_idx = np.random.permutation(n_samples)
+		shuffle_idx = np.random.permutation(n_samples) if shuffle else range(n_samples)
 		for i in range(0, n_samples, batch_size):
 			batch_idx = shuffle_idx[i:i+batch_size]
 			batch_x = data_x[batch_idx]
@@ -149,26 +145,26 @@ def dataset_sig(data_x, data_y):
 	return sig
 
 train_dataset = tf.data.Dataset.from_generator(
-	lambda: dataset_gen(train_x, train_x, BATCH_SIZE), 
+	lambda: dataset_gen(train_x, train_x, BATCH_SIZE, shuffle=True), 
 	output_signature=dataset_sig(train_x, train_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 val_dataset = tf.data.Dataset.from_generator(
-	lambda: dataset_gen(val_x, val_x, BATCH_SIZE), 
+	lambda: dataset_gen(val_x, val_x, BATCH_SIZE, shuffle=False), 
 	output_signature=dataset_sig(val_x, val_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 test_dataset = tf.data.Dataset.from_generator(
-	lambda: dataset_gen(test_x, test_x, BATCH_SIZE), 
+	lambda: dataset_gen(test_x, test_x, BATCH_SIZE, shuffle=False), 
 	output_signature=dataset_sig(test_x, test_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
-#train_dataset.shuffle(buffer_size=10_000).prefetch(tf.data.experimental.AUTOTUNE)
-#val_dataset.prefetch(tf.data.experimental.AUTOTUNE)
-#test_dataset
-
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
+###!
+# train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
+# val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
+# test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_SIZE)
 # memory cleanup
 #del data
 #del train_x; del val_x; del test_x
