@@ -70,50 +70,108 @@ assert (N_SAMPLES % N_TOKENS) == 0
 
 ### prepare data
 
-# load data
-print('Load cache..')
-data = reload_cache('data/audioset_mono_24khz_float32.csv')
-print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+# # load data
+# print('Load cache..')
+# data = reload_cache('data/audioset_mono_24khz_float32.csv')
+# print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
-# expand sequences
-print('Expand sequences..')
-data = expand_data(
-	data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1)
-)
-plot_distributions(data.apply(wav_stats_fn, axis=1), filename='data/audioset_description_t5.png')
-print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+# # expand sequences
+# print('Expand sequences..')
+# data = expand_data(
+	# data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1)
+# )
+# plot_distributions(data.apply(wav_stats_fn, axis=1), filename='data/audioset_description_t5.png')
+# print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
-# transform data
-print('Apply transforms..')
-data = transform_data(
-	data,
-	[pad_and_slice_fn],
-	[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}],
-	verbose=VERBOSE
-)
-print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+# # transform data
+# print('Apply transforms..')
+# data = transform_data(
+	# data,
+	# [pad_and_slice_fn],
+	# [{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}],
+	# verbose=VERBOSE
+# )
+# print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
-# partition data
-print('Partition data..')
-(train_x, _), (val_x, _), (test_x, _) = partition_data(
-	data,
-	test_ratio=TEST_RATIO,
-	val_ratio=VAL_RATIO,
-	verbose=VERBOSE
-)
+# # partition data
+# print('Partition data..')
+# (train_x, _), (val_x, _), (test_x, _) = partition_data(
+	# data,
+	# test_ratio=TEST_RATIO,
+	# val_ratio=VAL_RATIO,
+	# verbose=VERBOSE
+# )
+
+
+
+###! debug
+# with open('dataset_debug_cache.pkl', 'wb') as f:
+	# partitions = partition_data(
+		# data,
+		# test_ratio=TEST_RATIO,
+		# val_ratio=VAL_RATIO,
+		# verbose=VERBOSE
+	# )
+	# pickle.dump(partitions, f)
+with open('dataset_debug_cache.pkl', 'rb') as f:
+	(train_x, _), (val_x, _), (test_x, _) = pickle.load(f)
+	print(train_x.shape, train_x.shape, 'train')
+	print(val_x.shape, val_x.shape, 'val')
+	print(test_x.shape, test_x.shape, 'test')
+
+
+
 plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # convert to tf.data.Dataset
 print('Convert to Dataset..')
-train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
-val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
-test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_SIZE)
+
+# train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
+# val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
+# test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_SIZE)
+
+def dataset_gen(data_x, data_y, batch_size):
+	n_samples = len(data_x)
+	while True:
+		shuffle_idx = np.random.permutation(n_samples)
+		for i in range(0, n_samples, batch_size):
+			batch_idx = shuffle_idx[i:i+batch_size]
+			batch_x = data_x[batch_idx]
+			batch_y = data_y[batch_idx]
+			yield batch_x, batch_y
+
+def dataset_sig(data_x, data_y):
+	sig = (
+		tf.TensorSpec(shape=(None, *data_x.shape[1:]), dtype=data_x.dtype),
+		tf.TensorSpec(shape=(None, *data_y.shape[1:]), dtype=data_y.dtype)
+	)
+	return sig
+
+train_dataset = tf.data.Dataset.from_generator(
+	lambda: dataset_gen(train_x, train_x, BATCH_SIZE), 
+	output_signature=dataset_sig(train_x, train_x)
+).prefetch(tf.data.experimental.AUTOTUNE)
+
+val_dataset = tf.data.Dataset.from_generator(
+	lambda: dataset_gen(val_x, val_x, BATCH_SIZE), 
+	output_signature=dataset_sig(val_x, val_x)
+).prefetch(tf.data.experimental.AUTOTUNE)
+
+test_dataset = tf.data.Dataset.from_generator(
+	lambda: dataset_gen(test_x, test_x, BATCH_SIZE), 
+	output_signature=dataset_sig(test_x, test_x)
+).prefetch(tf.data.experimental.AUTOTUNE)
+
+#train_dataset.shuffle(buffer_size=10_000).prefetch(tf.data.experimental.AUTOTUNE)
+#val_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+#test_dataset
+
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # memory cleanup
-del data
-del train_x; del val_x; del test_x
+#del data
+#del train_x; del val_x; del test_x
 
 
 ### initialise model
@@ -151,6 +209,7 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 train_history = model.fit(
 	train_dataset,
 	epochs=N_EPOCHS,
+	steps_per_epoch=len(train_x)//BATCH_SIZE, ###! 
 	validation_data=val_dataset,
 	callbacks=[checkpoint_callback],
 	verbose=int(VERBOSE)
