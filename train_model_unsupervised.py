@@ -53,14 +53,14 @@ DROPOUT = 0.1
 NOISE_SD = 0.3
 
 # training
-ETA = 1e-5
+ETA = 1e-4
 L2_LAM = 0. ###! unimplemented
 BATCH_SIZE = 32
-N_EPOCHS = 50
+N_EPOCHS = 20
 
 # data
 VAL_RATIO = 0.10
-TEST_RATIO = 0.25
+TEST_RATIO = 0.20
 
 # tracing
 VERBOSE = True
@@ -127,13 +127,13 @@ def dataset_generator(data_x, data_y, batch_size, shuffle=True, debug_title=None
 	assert (len(data_x)==len(data_y))
 	n_samples = len(data_x)
 	while True:
-		shuffle_idx = np.random.permutation(n_samples) if shuffle else range(n_samples)
+		data_idx_shuffle = np.random.permutation(n_samples) if shuffle else range(n_samples)
 		for batch_idx, data_idx in enumerate(range(0, n_samples, batch_size)):
 			if debug_title is not None:
 				print(f'\n{debug_title} {batch_idx}')
-			batch_idx = shuffle_idx[data_idx:data_idx+batch_size]
-			batch_x = data_x[batch_idx]
-			batch_y = data_y[batch_idx]
+			batch_data_idx = data_idx_shuffle[data_idx:data_idx+batch_size]
+			batch_x = data_x[batch_data_idx]
+			batch_y = data_y[batch_data_idx]
 			yield batch_x, batch_y
 
 def dataset_signature(data_x, data_y):
