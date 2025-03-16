@@ -56,7 +56,7 @@ NOISE_SD = 0.2
 ETA = 1e-5
 L2_LAM = 0. ###! unimplemented
 BATCH_SIZE = 32
-N_EPOCHS = 30
+N_EPOCHS = 50
 
 # data
 VAL_RATIO = 0.10
@@ -127,11 +127,14 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 # convert to tf.data.Dataset
 print('Convert to Dataset..')
 
-def dataset_gen(data_x, data_y, batch_size, shuffle=True):
+def dataset_gen(data_x, data_y, batch_size, shuffle=True, debug_title=None):
+	assert (len(data_x)==len(data_y))
 	n_samples = len(data_x)
 	while True:
 		shuffle_idx = np.random.permutation(n_samples) if shuffle else range(n_samples)
-		for i in range(0, n_samples, batch_size):
+		for debug_i,i in enumerate(range(0, n_samples, batch_size)):
+			if debug_title is not None:
+				print(f'\n{debug_title} {debug_i}')
 			batch_idx = shuffle_idx[i:i+batch_size]
 			batch_x = data_x[batch_idx]
 			batch_y = data_y[batch_idx]
@@ -145,29 +148,25 @@ def dataset_sig(data_x, data_y):
 	return sig
 
 train_dataset = tf.data.Dataset.from_generator(
-	lambda: dataset_gen(train_x, train_x, BATCH_SIZE, shuffle=True), 
+	lambda: dataset_gen(train_x, train_x, BATCH_SIZE, shuffle=True, debug_title='train_dataset'),
 	output_signature=dataset_sig(train_x, train_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 val_dataset = tf.data.Dataset.from_generator(
-	lambda: dataset_gen(val_x, val_x, BATCH_SIZE, shuffle=False), 
+	lambda: dataset_gen(val_x, val_x, BATCH_SIZE, shuffle=False, debug_title='val_dataset'),
 	output_signature=dataset_sig(val_x, val_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 test_dataset = tf.data.Dataset.from_generator(
-	lambda: dataset_gen(test_x, test_x, BATCH_SIZE, shuffle=False), 
+	lambda: dataset_gen(test_x, test_x, BATCH_SIZE, shuffle=False, debug_title='test_dataset'),
 	output_signature=dataset_sig(test_x, test_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
-print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+train_steps = len(train_x)//BATCH_SIZE
+val_steps = len(val_x)//BATCH_SIZE
+test_steps = len(test_x)//BATCH_SIZE
 
-###!
-# train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_x)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
-# val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_x)).batch(BATCH_SIZE)
-# test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_x)).batch(BATCH_SIZE)
-# memory cleanup
-#del data
-#del train_x; del val_x; del test_x
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
 ### initialise model
@@ -205,8 +204,9 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 train_history = model.fit(
 	train_dataset,
 	epochs=N_EPOCHS,
-	steps_per_epoch=len(train_x)//BATCH_SIZE, ###! 
+	steps_per_epoch=train_steps,
 	validation_data=val_dataset,
+	validation_steps=val_steps,
 	callbacks=[checkpoint_callback],
 	verbose=int(VERBOSE)
 ).history
@@ -220,6 +220,7 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 model.load_weights(f'{model.name}.weights.h5')
 test_history = model.evaluate(
 	test_dataset,
+	steps=test_steps,
 	verbose=int(VERBOSE),
 	return_dict=True
 )
