@@ -50,7 +50,7 @@ HIDDEN_DIM = 256
 ENCODER_BLOCKS = 4
 N_HEADS = 8
 DROPOUT = 0.1
-NOISE_SD = 0.2
+NOISE_SD = 0.3
 
 # training
 ETA = 1e-5
@@ -70,56 +70,52 @@ assert (N_SAMPLES % N_TOKENS) == 0
 
 ### prepare data
 
-# # load data
-# print('Load cache..')
-# data = reload_cache('data/audioset_mono_24khz_float32.csv')
-# print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+# load data
+print('Load cache..')
+data = reload_cache('data/audioset_mono_24khz_float32.csv')
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
-# # expand sequences
-# print('Expand sequences..')
-# data = expand_data(
-	# data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1)
-# )
-# plot_distributions(data.apply(wav_stats_fn, axis=1), filename='data/audioset_description_t5.png')
-# print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+# expand sequences
+print('Expand sequences..')
+data = expand_data(
+	data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1)
+)
+plot_distributions(data.apply(wav_stats_fn, axis=1), filename='data/audioset_description_t5.png')
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
-# # transform data
-# print('Apply transforms..')
-# data = transform_data(
-	# data,
-	# [pad_and_slice_fn],
-	# [{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}],
-	# verbose=VERBOSE
-# )
-# print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+# transform data
+print('Apply transforms..')
+data = transform_data(
+	data,
+	[pad_and_slice_fn],
+	[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}],
+	verbose=VERBOSE
+)
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
-# # partition data
-# print('Partition data..')
-# (train_x, _), (val_x, _), (test_x, _) = partition_data(
-	# data,
-	# test_ratio=TEST_RATIO,
-	# val_ratio=VAL_RATIO,
-	# verbose=VERBOSE
-# )
+# partition data
+print('Partition data..')
+(train_x, _), (val_x, _), (test_x, _) = partition_data(
+	data,
+	test_ratio=TEST_RATIO,
+	val_ratio=VAL_RATIO,
+	verbose=VERBOSE
+)
 
-
-
-###! debug
-# with open('dataset_debug_cache.pkl', 'wb') as f:
-	# partitions = partition_data(
-		# data,
-		# test_ratio=TEST_RATIO,
-		# val_ratio=VAL_RATIO,
-		# verbose=VERBOSE
-	# )
-	# pickle.dump(partitions, f)
-with open('dataset_debug_cache.pkl', 'rb') as f:
-	(train_x, _), (val_x, _), (test_x, _) = pickle.load(f)
-	print(train_x.shape, train_x.shape, 'train')
-	print(val_x.shape, val_x.shape, 'val')
-	print(test_x.shape, test_x.shape, 'test')
-
-
+###! debug shortcut
+# # with open('dataset_debug_cache.pkl', 'wb') as f:
+	# # partitions = partition_data(
+		# # data,
+		# # test_ratio=TEST_RATIO,
+		# # val_ratio=VAL_RATIO,
+		# # verbose=VERBOSE
+	# # )
+	# # pickle.dump(partitions, f)
+# with open('dataset_debug_cache.pkl', 'rb') as f:
+	# (train_x, _), (val_x, _), (test_x, _) = pickle.load(f)
+	# print(train_x.shape, train_x.shape, 'train')
+	# print(val_x.shape, val_x.shape, 'val')
+	# print(test_x.shape, test_x.shape, 'test')
 
 plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
@@ -127,20 +123,20 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 # convert to tf.data.Dataset
 print('Convert to Dataset..')
 
-def dataset_gen(data_x, data_y, batch_size, shuffle=True, debug_title=None):
+def dataset_generator(data_x, data_y, batch_size, shuffle=True, debug_title=None):
 	assert (len(data_x)==len(data_y))
 	n_samples = len(data_x)
 	while True:
 		shuffle_idx = np.random.permutation(n_samples) if shuffle else range(n_samples)
-		for debug_i,i in enumerate(range(0, n_samples, batch_size)):
+		for batch_idx, data_idx in enumerate(range(0, n_samples, batch_size)):
 			if debug_title is not None:
-				print(f'\n{debug_title} {debug_i}')
-			batch_idx = shuffle_idx[i:i+batch_size]
+				print(f'\n{debug_title} {batch_idx}')
+			batch_idx = shuffle_idx[data_idx:data_idx+batch_size]
 			batch_x = data_x[batch_idx]
 			batch_y = data_y[batch_idx]
 			yield batch_x, batch_y
 
-def dataset_sig(data_x, data_y):
+def dataset_signature(data_x, data_y):
 	sig = (
 		tf.TensorSpec(shape=(None, *data_x.shape[1:]), dtype=data_x.dtype),
 		tf.TensorSpec(shape=(None, *data_y.shape[1:]), dtype=data_y.dtype)
@@ -148,18 +144,18 @@ def dataset_sig(data_x, data_y):
 	return sig
 
 train_dataset = tf.data.Dataset.from_generator(
-	lambda: dataset_gen(train_x, train_x, BATCH_SIZE, shuffle=True, debug_title='train_dataset'),
-	output_signature=dataset_sig(train_x, train_x)
+	lambda: dataset_generator(train_x, train_x, BATCH_SIZE, shuffle=True),#, debug_title='train_dataset'),
+	output_signature=dataset_signature(train_x, train_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 val_dataset = tf.data.Dataset.from_generator(
-	lambda: dataset_gen(val_x, val_x, BATCH_SIZE, shuffle=False, debug_title='val_dataset'),
-	output_signature=dataset_sig(val_x, val_x)
+	lambda: dataset_generator(val_x, val_x, BATCH_SIZE, shuffle=False),#, debug_title='val_dataset'),
+	output_signature=dataset_signature(val_x, val_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 test_dataset = tf.data.Dataset.from_generator(
-	lambda: dataset_gen(test_x, test_x, BATCH_SIZE, shuffle=False, debug_title='test_dataset'),
-	output_signature=dataset_sig(test_x, test_x)
+	lambda: dataset_generator(test_x, test_x, BATCH_SIZE, shuffle=False),#, debug_title='test_dataset'),
+	output_signature=dataset_signature(test_x, test_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 train_steps = len(train_x)//BATCH_SIZE
