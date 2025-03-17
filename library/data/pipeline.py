@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import scipy as sp
+import tensorflow as tf
 import math
 
 # import multiprocessing

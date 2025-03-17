@@ -75,48 +75,65 @@ assert (N_SAMPLES % N_TOKENS) == 0
 ### prepare data
 
 # load data
+print('Load cache..')
 data = reload_cache('data/urbansound8k_mono_24khz_float32.csv')
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # expand sequences
+print('Expand sequences..')
 data = expand_data(
 	data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1)
 )
 plot_distributions(data.apply(wav_stats_fn, axis=1), filename='data/urbansound8k_description_t5.png')
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # transform data
+print('Apply transforms..')
 data = transform_data(
 	data,
 	[pad_and_slice_fn, cls_token_fn],
 	[{'n_samples':N_SAMPLES, 'n_tokens':N_TOKENS}, {}],
 	verbose=VERBOSE
 )
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # partition data
+print('Partition data..')
 (train_x, train_y), (val_x, val_y), (test_x, test_y) = partition_data(
 	data,
 	test_idx=TEST_IDX,
 	val_ratio=VAL_RATIO,
 	verbose=VERBOSE
 )
-
-# plot sample
 plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
-
-###! todo
-
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # convert to tf.data.Dataset
-train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_y)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
-val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_y)).batch(BATCH_SIZE)
-test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_y)).batch(BATCH_SIZE)
+print('Convert to Dataset..')
+
+train_dataset = tf.data.Dataset.from_generator(
+	lambda: dataset_generator(train_x, train_y, BATCH_SIZE, shuffle=True),#, debug_title='train_dataset'),
+	output_signature=dataset_signature(train_x, train_y)
+).prefetch(tf.data.experimental.AUTOTUNE)
+
+val_dataset = tf.data.Dataset.from_generator(
+	lambda: dataset_generator(val_x, val_y, BATCH_SIZE, shuffle=False),#, debug_title='val_dataset'),
+	output_signature=dataset_signature(val_x, val_y)
+).prefetch(tf.data.experimental.AUTOTUNE)
+
+test_dataset = tf.data.Dataset.from_generator(
+	lambda: dataset_generator(test_x, test_y, BATCH_SIZE, shuffle=False),#, debug_title='test_dataset'),
+	output_signature=dataset_signature(test_x, test_y)
+).prefetch(tf.data.experimental.AUTOTUNE)
+
+train_steps = len(train_x)//BATCH_SIZE
+val_steps = len(val_x)//BATCH_SIZE
+test_steps = len(test_x)//BATCH_SIZE
+
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # memory cleanup
 del data
-del train_x; del val_x; del test_x
-del train_y; del val_y; del test_y
-
-# trace
-print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
 ### initialise model
