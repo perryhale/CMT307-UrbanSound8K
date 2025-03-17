@@ -57,10 +57,12 @@ NOISE_SD = 0.2
 N_CLASSES = 10
 
 # training
-ETA = 1e-6
-L2_LAM = 0. ###! unimplemented
+N_EPOCHS = 50
 BATCH_SIZE = 64
-N_EPOCHS = 100
+L2_LAM = 0. ###! unimplemented
+ETA = 1e-3
+DECAY_RATE = 0.37
+DECAY_FACTOR = 0.1
 
 # data
 VAL_RATIO = 0.10
@@ -139,7 +141,12 @@ del data
 ### initialise model
 
 loss_fn = losses.SparseCategoricalCrossentropy()
-optimizer = optimizers.AdamW(learning_rate=ETA)
+lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(
+    initial_learning_rate=ETA,
+    decay_rate=DECAY_RATE,
+    decay_steps=DECAY_FACTOR*N_EPOCHS*train_steps
+)
+optimizer = optimizers.AdamW(learning_rate=lr_schedule)
 
 model = get_denoising_transformer_encoder(
 	K2,

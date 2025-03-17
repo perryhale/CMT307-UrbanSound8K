@@ -55,10 +55,12 @@ DROPOUT = 0.1
 NOISE_SD = 0.3
 
 # training
-ETA = 1e-5
-L2_LAM = 0. ###! unimplemented
+N_EPOCHS = 50
 BATCH_SIZE = 64
-N_EPOCHS = 20
+L2_LAM = 0. ###! unimplemented
+ETA = 1e-3
+DECAY_RATE = 0.37
+DECAY_FACTOR = 0.1
 
 # data
 VAL_RATIO = 0.10
@@ -75,6 +77,7 @@ assert (N_SAMPLES % N_TOKENS) == 0
 # load data
 print('Load cache..')
 data = reload_cache('data/audioset_mono_24khz_float32.csv')
+#data = reload_cache('data/urbansound8k_mono_24khz_float32.csv') # for comparison
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # expand sequences
@@ -153,7 +156,12 @@ del data
 ### initialise model
 
 loss_fn = losses.MeanSquaredError()
-optimizer = optimizers.AdamW(learning_rate=ETA)
+lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(
+    initial_learning_rate=ETA,
+    decay_rate=DECAY_RATE,
+    decay_steps=DECAY_FACTOR*N_EPOCHS*train_steps
+)
+optimizer = optimizers.AdamW(learning_rate=lr_schedule)
 
 model = get_denoising_transformer_encoder(
 	K2,
