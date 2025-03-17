@@ -15,7 +15,9 @@ from library.data.pipeline import (
 	expand_fn,
 	expand_data,
 	transform_data,
-	partition_data
+	partition_data,
+	dataset_generator,
+	dataset_signature
 )
 from library.data.descriptive import (
 	wav_stats_fn,
@@ -52,9 +54,10 @@ ENCODER_BLOCKS = 4
 N_HEADS = 8
 DROPOUT = 0.1
 NOISE_SD = 0.2
+N_CLASSES = 10
 
 # training
-ETA = 1e-5
+ETA = 1e-6
 L2_LAM = 0. ###! unimplemented
 BATCH_SIZE = 64
 N_EPOCHS = 100
@@ -98,6 +101,9 @@ data = transform_data(
 
 # plot sample
 plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
+
+###! todo
+
 
 # convert to tf.data.Dataset
 train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_y)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)

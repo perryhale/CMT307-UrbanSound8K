@@ -15,7 +15,9 @@ from library.data.pipeline import (
 	expand_fn,
 	expand_data,
 	transform_data,
-	partition_data
+	partition_data,
+	dataset_generator,
+	dataset_signature
 )
 from library.data.descriptive import (
 	wav_stats_fn,
@@ -52,9 +54,10 @@ ENCODER_BLOCKS = 4
 N_HEADS = 8
 DROPOUT = 0.1
 NOISE_SD = 0.2
+N_CLASSES = 10
 
 # training
-ETA = 1e-5
+ETA = 1e-6
 L2_LAM = 0. ###! unimplemented
 BATCH_SIZE = 64
 N_EPOCHS = 100
@@ -100,17 +103,42 @@ data = transform_data(
 plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
 
 # convert to tf.data.Dataset
-train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_y)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
-val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_y)).batch(BATCH_SIZE)
-test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_y)).batch(BATCH_SIZE)
+# train_dataset = tf.data.Dataset.from_tensor_slices((train_x, train_y)).shuffle(buffer_size=len(train_x)).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
+# val_dataset = tf.data.Dataset.from_tensor_slices((val_x, val_y)).batch(BATCH_SIZE)
+# test_dataset = tf.data.Dataset.from_tensor_slices((test_x, test_y)).batch(BATCH_SIZE)
+print('Convert to Dataset..')
+
+train_dataset = tf.data.Dataset.from_generator(
+	lambda: dataset_generator(train_x, train_y, BATCH_SIZE, shuffle=True),#, debug_title='train_dataset'),
+	output_signature=dataset_signature(train_x, train_y)
+).prefetch(tf.data.experimental.AUTOTUNE)
+
+val_dataset = tf.data.Dataset.from_generator(
+	lambda: dataset_generator(val_x, val_y, BATCH_SIZE, shuffle=False),#, debug_title='val_dataset'),
+	output_signature=dataset_signature(val_x, val_y)
+).prefetch(tf.data.experimental.AUTOTUNE)
+
+test_dataset = tf.data.Dataset.from_generator(
+	lambda: dataset_generator(test_x, test_y, BATCH_SIZE, shuffle=False),#, debug_title='test_dataset'),
+	output_signature=dataset_signature(test_x, test_y)
+).prefetch(tf.data.experimental.AUTOTUNE)
+
+train_steps = len(train_x)//BATCH_SIZE
+val_steps = len(val_x)//BATCH_SIZE
+test_steps = len(test_x)//BATCH_SIZE
+
+print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # memory cleanup
 del data
-del train_x; del val_x; del test_x
-del train_y; del val_y; del test_y
 
-# trace
-print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+# # memory cleanup
+# del data
+# del train_x; del val_x; del test_x
+# del train_y; del val_y; del test_y
+
+# # trace
+# print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 
 ### initialise model
@@ -150,7 +178,9 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 train_history = model.fit(
 	train_dataset,
 	epochs=N_EPOCHS,
+	steps_per_epoch=train_steps,
 	validation_data=val_dataset,
+	validation_steps=val_steps,
 	callbacks=[checkpoint_callback],
 	verbose=int(VERBOSE)
 ).history
@@ -164,6 +194,7 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 model.load_weights(f'{model.name}.weights.h5')
 test_history = model.evaluate(
 	test_dataset,
+	steps=test_steps,
 	verbose=int(VERBOSE),
 	return_dict=True
 )

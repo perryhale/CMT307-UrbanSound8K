@@ -221,3 +221,35 @@ def partition_data(
 		print(test_x.shape, test_y.shape, 'test')
 	
 	return (train_x, train_y), (val_x, val_y), (test_x, test_y)
+
+
+def dataset_generator(data_x, data_y, batch_size, shuffle=True, debug_title=None):
+	""" Dataset batch generator
+	# type: (np.ndarray, np.ndarray, int, bool, str) ~> Tuple[np.ndarray, np.ndarray]
+	
+	Yields optionally shuffled batches an infinite number of times
+	"""
+	assert (len(data_x)==len(data_y))
+	n_samples = len(data_x)
+	while True:
+		data_idx_shuffle = np.random.permutation(n_samples) if shuffle else range(n_samples)
+		for batch_idx, data_idx in enumerate(range(0, n_samples, batch_size)):
+			if debug_title is not None:
+				print(f'\n{debug_title} {batch_idx}')
+			batch_data_idx = data_idx_shuffle[data_idx:data_idx+batch_size]
+			batch_x = data_x[batch_data_idx]
+			batch_y = data_y[batch_data_idx]
+			yield batch_x, batch_y
+
+
+def dataset_signature(data_x, data_y):
+	""" Dataset tensor specification
+	# type: (np.ndarray, np.ndarray) -> Tuple[tf.TensorSpec, tf.TensorSpec]
+	
+	Describes shape and type signature for x and y sets
+	"""
+	sig = (
+		tf.TensorSpec(shape=(None, *data_x.shape[1:]), dtype=data_x.dtype),
+		tf.TensorSpec(shape=(None, *data_y.shape[1:]), dtype=data_y.dtype)
+	)
+	return sig

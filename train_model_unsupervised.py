@@ -14,7 +14,9 @@ from library.data.pipeline import (
 	expand_fn,
 	expand_data,
 	transform_data,
-	partition_data
+	partition_data,
+	dataset_generator,
+	dataset_signature
 )
 from library.data.descriptive import (
 	wav_stats_fn,
@@ -53,9 +55,9 @@ DROPOUT = 0.1
 NOISE_SD = 0.3
 
 # training
-ETA = 1e-4
+ETA = 1e-5
 L2_LAM = 0. ###! unimplemented
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 N_EPOCHS = 20
 
 # data
@@ -123,26 +125,6 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 # convert to tf.data.Dataset
 print('Convert to Dataset..')
 
-def dataset_generator(data_x, data_y, batch_size, shuffle=True, debug_title=None):
-	assert (len(data_x)==len(data_y))
-	n_samples = len(data_x)
-	while True:
-		data_idx_shuffle = np.random.permutation(n_samples) if shuffle else range(n_samples)
-		for batch_idx, data_idx in enumerate(range(0, n_samples, batch_size)):
-			if debug_title is not None:
-				print(f'\n{debug_title} {batch_idx}')
-			batch_data_idx = data_idx_shuffle[data_idx:data_idx+batch_size]
-			batch_x = data_x[batch_data_idx]
-			batch_y = data_y[batch_data_idx]
-			yield batch_x, batch_y
-
-def dataset_signature(data_x, data_y):
-	sig = (
-		tf.TensorSpec(shape=(None, *data_x.shape[1:]), dtype=data_x.dtype),
-		tf.TensorSpec(shape=(None, *data_y.shape[1:]), dtype=data_y.dtype)
-	)
-	return sig
-
 train_dataset = tf.data.Dataset.from_generator(
 	lambda: dataset_generator(train_x, train_x, BATCH_SIZE, shuffle=True),#, debug_title='train_dataset'),
 	output_signature=dataset_signature(train_x, train_x)
@@ -163,6 +145,9 @@ val_steps = len(val_x)//BATCH_SIZE
 test_steps = len(test_x)//BATCH_SIZE
 
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
+
+# memory cleanup
+del data
 
 
 ### initialise model
