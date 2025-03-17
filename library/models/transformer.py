@@ -212,16 +212,16 @@ def convert_dte_to_classifier(
 		z = layer(z)
 	
 	# init classification head
+	yh = layers.Lambda(
+		lambda x : x[:, 0, :],
+		name='classification_token'
+	)(z)
 	yh = layers.Dense(
 		n_classes,
 		activation='softmax',
 		kernel_initializer=initializers.GlorotUniform(seed=key),
 		bias_initializer='zeros',
 		name='classification_head'
-	)(z)
-	yh = layers.Lambda(
-		lambda x : x[:, 0, :],
-		name='classification_token'
 	)(yh)
 	
 	# finalise model
