@@ -176,7 +176,9 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 train_history = model.fit(
 	train_dataset,
 	epochs=N_EPOCHS,
+	steps_per_epoch=train_steps,
 	validation_data=val_dataset,
+	validation_steps=val_steps,
 	callbacks=[checkpoint_callback],
 	verbose=int(VERBOSE)
 ).history
@@ -190,6 +192,7 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 model.load_weights(f'{model.name}.weights.h5')
 test_history = model.evaluate(
 	test_dataset,
+	steps=test_steps,
 	verbose=int(VERBOSE),
 	return_dict=True
 )
