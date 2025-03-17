@@ -107,7 +107,7 @@ print('Partition data..')
 	val_ratio=VAL_RATIO,
 	verbose=VERBOSE
 )
-plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
+plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input', key=K1)
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # convert to tf.data.Dataset

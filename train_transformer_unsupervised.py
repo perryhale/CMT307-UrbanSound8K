@@ -122,7 +122,7 @@ print('Partition data..')
 	# print(val_x.shape, val_x.shape, 'val')
 	# print(test_x.shape, test_x.shape, 'test')
 
-plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input')
+plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input', key=K1)
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # convert to tf.data.Dataset
