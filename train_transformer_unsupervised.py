@@ -51,16 +51,17 @@ EMBED_DIM = 128
 HIDDEN_DIM = 256
 ENCODER_BLOCKS = 4
 N_HEADS = 8
-DROPOUT = 0.1
-NOISE_SD = 0.3
 
 # training
 N_EPOCHS = 50
 BATCH_SIZE = 64
-L2_LAM = 0. ###! unimplemented
 ETA = 1e-3
 DECAY_RATE = 0.37
 DECAY_FACTOR = 0.1
+#NOISE_SD = 0.3
+MASK_RATIO = 0.3
+L2_LAM = 0. ###! unimplemented
+DROPOUT = 0.4
 
 # data
 VAL_RATIO = 0.10
@@ -172,7 +173,7 @@ model = get_denoising_transformer_encoder(
 	ENCODER_BLOCKS,
 	n_heads=N_HEADS,
 	dropout=DROPOUT,
-	noise_sd=NOISE_SD,
+	mask_ratio=MASK_RATIO,
 )
 model.compile(loss=loss_fn, optimizer=optimizer, metrics=['root_mean_squared_error'])
 model.summary()

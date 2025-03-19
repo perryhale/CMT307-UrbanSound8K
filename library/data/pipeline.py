@@ -106,6 +106,17 @@ def cls_token_fn(row):
 	return new_row
 
 
+def natural_noise_fn(row, data=None):
+	""" Randomly overlay samples to produce natural noise
+	
+	Function stub:
+	- Should use with expand_data
+	- Implementation should be deterministic with randomness handled in data arg prior to call
+	"""
+	assert data is not None, "Must pass data kwarg."
+	pass
+
+
 def expand_data(data):
 	""" Expand sliced audio data into new dataframe of slices
 	# type: (pd.DataFrame) -> pd.DataFrame

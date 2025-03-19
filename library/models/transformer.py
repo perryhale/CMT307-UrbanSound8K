@@ -108,10 +108,40 @@ class FixedLearnablePositionalEncoding(layers.Layer):
 class PermanentGaussianNoise(layers.GaussianNoise):
 	""" Gaussian Noise layer active at both training and inference time
 	"""
-	
+	# P(-1 <= U(0,0.3) <= +1) = 0.9991419
 	# type: (PermanentGaussianNoise, np.ndarray, None) -> np.ndarray
 	def call(self, x, training=None):
 		return super().call(x, training=True)
+
+
+class PermanentUniformTokenMask(layers.Layer):
+	""" Random-uniformly mask tokens, active at both training and inference time
+	"""
+	
+	# type: (PermanentUniformTokenMask, float, float) -> None
+	def __init__(self, mask_ratio=0.15, mask_value=0.0, seed=None, **kwargs):
+		super(PermanentUniformTokenMask, self).__init__(**kwargs)
+		self.mask_ratio = mask_ratio
+		self.mask_value = mask_value
+		self._rng = tf.random.Generator.from_seed(seed) if seed is not None else tf.random.get_global_generator()
+	
+	# type: (PermanentUniformTokenMask, np.ndarray, bool) -> np.ndarray
+	def call(self, inputs, training=None):
+		
+		# determine input shape
+		batch_size = tf.shape(inputs)[0]
+		seq_length = tf.shape(inputs)[1]
+		token_dim = tf.shape(inputs)[2]
+		
+		# generate mask
+		random_mask = tf.cast(tf.less(self._rng.uniform((batch_size, seq_length)), self.mask_ratio), tf.float32)
+		mask_expanded = tf.expand_dims(random_mask, axis=-1)
+		mask_expanded = tf.broadcast_to(mask_expanded, tf.shape(inputs))
+		
+		# apply mask
+		masked_inputs = inputs * (1 - mask_expanded) + self.mask_value * mask_expanded
+		
+		return masked_inputs
 
 
 def get_denoising_transformer_encoder(
@@ -123,7 +153,7 @@ def get_denoising_transformer_encoder(
 		n_blocks,
 		n_heads=8,
 		dropout=0.1,
-		noise_sd=0.3,
+		mask_ratio=0.3,
 		name='denoising_transformer_encoder'
 	):
 	""" Instantiate Denoising Transformer Encoder
@@ -140,7 +170,7 @@ def get_denoising_transformer_encoder(
 	
 	# init input with gaussian perturbation
 	x = tf.keras.Input(shape=(n_tokens, token_dim))
-	z = PermanentGaussianNoise(noise_sd, seed=noise_key)(x) # P(-1 <= U(0,0.3) <= +1) = 0.9991419
+	z = PermanentUniformTokenMask(mask_ratio=mask_ratio, seed=noise_key)(x)
 	
 	# init input embedding
 	input_embedding = layers.Dense(
