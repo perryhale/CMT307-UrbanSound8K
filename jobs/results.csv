@@ -1,0 +1,43 @@
+directory	, pretrain_noise	, pretrain_data	, n_epochs	, eta		, decay_rate	, decay_factor	, dropout	, test_accuracy	,	val_accuracy
+
+a1			, gaussian			, urbandound8k	, 100		, 1e-6		, 0.0			, 1.0			, 0.1		, 0.4050		, 0.3885
+a2			, gaussian			, audioset		, 100		, 1e-6		, 0.0			, 1.0			, 0.1		, 0.5093		, 0.5543
+a2			, none				, none			, 100		, 1e-6		, 0.0			, 1.0			, 0.1		, 0.4512		, 0.4062
+
+...			, gaussian			, urbandound8k	, 50		, 1e-3		, 0.37			, 0.1			, 0.1		, ...			, ...
+b1			, gaussian			, audioset		, 50		, 1e-3		, 0.37			, 0.1			, 0.1		, 0.5556		, 0.7520
+b1			, none				, none			, 50		, 1e-3		, 0.37			, 0.1			, 0.1		, 0.5531		, 0.7248
+
+...			, gaussian			, urbandound8k	, 50		, 1e-5		, 0.37			, 0.1			, 0.1		, ...			, ...
+b2			, gaussian			, audioset		, 50		, 1e-5		, 0.37			, 0.1			, 0.1		, 0.4668		, 0.4755
+b2			, none				, none			, 200		, 1e-5		, 0.37			, 0.1			, 0.1		, 0.5475		, 0.6691
+
+c1			, gaussian			, urbandound8k	, 50		, 1e-3		, 0.37			, 0.1			, 0.4		, 0.5581		, 0.7187
+c2			, gaussian			, audioset		, 50		, 1e-3		, 0.37			, 0.1			, 0.4		, 0.5600		, 0.7418
+c2			, none				, none			, 50		, 1e-3		, 0.37			, 0.1			, 0.4		, 0.5406		, 0.7309
+
+d1			, masking			, audioset		, 50		, 1e-3		, 0.37			, 0.1			, 0.4		, 0.5558		, 0.7092
+...			, natural			, audioset		, 50		, 1e-3		, 0.37			, 0.1			, 0.4		, ...			, ... (out of memory)
+
+
+N_TOKENS = 512
+N_SAMPLES = 48_000 + (N_TOKENS - (48_000 % N_TOKENS)) % N_TOKENS
+EMBED_DIM = 128
+HIDDEN_DIM = 256
+ENCODER_BLOCKS = 4
+N_HEADS = 8
+N_CLASSES = 10
+
+N_EPOCHS = n_epochs
+BATCH_SIZE = 64
+
+ETA = eta
+DECAY_RATE = decay_rate
+DECAY_FACTOR = decay_factor
+
+DROPOUT = dropout
+L2_LAM = None
+
+NOISE_SD = 0.3
+MASK_RATIO = 0.3
+NNS_RATIO = 0.5

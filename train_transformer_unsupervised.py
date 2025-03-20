@@ -15,15 +15,20 @@ from library.data.pipeline import (
 	expand_data,
 	transform_data,
 	partition_data,
-	dataset_generator,
-	dataset_signature
+	batch_generator,
+	batch_signature,
+	natural_noise_batch_generator
 )
 from library.data.descriptive import (
 	wav_stats_fn,
 	plot_distributions,
 	plot_tokenized_sample
 )
-from library.models.transformer import get_denoising_transformer_encoder
+from library.models.transformer import (
+	get_denoising_transformer_encoder,
+	PermanentGaussianNoise,
+	PermanentUniformTokenMask,
+)
 
 
 ### setup
@@ -52,25 +57,32 @@ HIDDEN_DIM = 256
 ENCODER_BLOCKS = 4
 N_HEADS = 8
 
-# training
+assert (N_SAMPLES % N_TOKENS) == 0
+
+# steps
 N_EPOCHS = 50
 BATCH_SIZE = 64
-ETA = 1e-3
+
+# learning rate
+ETA = 1e-4
 DECAY_RATE = 0.37
 DECAY_FACTOR = 0.1
-#NOISE_SD = 0.3
-MASK_RATIO = 0.3
-L2_LAM = 0. ###! unimplemented
-DROPOUT = 0.4
 
-# data
+# noise
+NOISE_SD = 0.3
+MASK_RATIO = 0.3
+NNS_RATIO = 0.5
+
+# explicit regularization
+L2_LAM = 0. ###! unimplemented
+DROPOUT = 0.3
+
+# data partitions
 VAL_RATIO = 0.10
 TEST_RATIO = 0.20
 
 # tracing
 VERBOSE = True
-
-assert (N_SAMPLES % N_TOKENS) == 0
 
 
 ### prepare data
@@ -83,9 +95,7 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
 # expand sequences
 print('Expand sequences..')
-data = expand_data(
-	data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1)
-)
+data = expand_data(data.apply(expand_fn, **{'n_samples':N_SAMPLES}, axis=1))
 plot_distributions(data.apply(wav_stats_fn, axis=1), filename='data/audioset_description_t5.png')
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
@@ -126,22 +136,25 @@ print('Partition data..')
 plot_tokenized_sample(train_x, prefix=f'{__file__.replace(".py","")}_input', key=K1)
 print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 
-# convert to tf.data.Dataset
+# convert to tf.data.Dataset using natural noise generator
 print('Convert to Dataset..')
 
 train_dataset = tf.data.Dataset.from_generator(
-	lambda: dataset_generator(train_x, train_x, BATCH_SIZE, shuffle=True),#, debug_title='train_dataset'),
-	output_signature=dataset_signature(train_x, train_x)
+	lambda:batch_generator(train_x, train_x, BATCH_SIZE, shuffle=True),#, debug_title='test_dataset'),
+	#lambda:natural_noise_batch_generator(train_x, train_x, BATCH_SIZE, shuffle=True, max_ratio=MAX_RATIO),
+	output_signature=batch_signature(train_x, train_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 val_dataset = tf.data.Dataset.from_generator(
-	lambda: dataset_generator(val_x, val_x, BATCH_SIZE, shuffle=False),#, debug_title='val_dataset'),
-	output_signature=dataset_signature(val_x, val_x)
+	lambda:batch_generator(val_x, val_x, BATCH_SIZE, shuffle=False),#, debug_title='test_dataset'),
+	#lambda:natural_noise_batch_generator(val_x, val_x, BATCH_SIZE, shuffle=False, max_ratio=MAX_RATIO),
+	output_signature=batch_signature(val_x, val_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 test_dataset = tf.data.Dataset.from_generator(
-	lambda: dataset_generator(test_x, test_x, BATCH_SIZE, shuffle=False),#, debug_title='test_dataset'),
-	output_signature=dataset_signature(test_x, test_x)
+	lambda:batch_generator(test_x, test_x, BATCH_SIZE, shuffle=False),#, debug_title='test_dataset'),
+	#lambda:natural_noise_batch_generator(test_x, test_x, BATCH_SIZE, shuffle=False, max_ratio=MAX_RATIO),
+	output_signature=batch_signature(test_x, test_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 train_steps = len(train_x)//BATCH_SIZE
@@ -173,7 +186,7 @@ model = get_denoising_transformer_encoder(
 	ENCODER_BLOCKS,
 	n_heads=N_HEADS,
 	dropout=DROPOUT,
-	mask_ratio=MASK_RATIO,
+	noise_layer_init=lambda k : PermanentUniformTokenMask(mask_ratio=MASK_RATIO, seed=k)
 )
 model.compile(loss=loss_fn, optimizer=optimizer, metrics=['root_mean_squared_error'])
 model.summary()

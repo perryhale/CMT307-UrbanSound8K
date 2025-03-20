@@ -105,16 +105,18 @@ def cls_token_fn(row):
 	
 	return new_row
 
-
-def natural_noise_fn(row, data=None):
-	""" Randomly overlay samples to produce natural noise
+###! see 'natural_noise_batch_generator'
+###! this method requires user to concatenate 'n_epochs' calls to produce random pattern over training -> very high mem
+# def convert_to_natural_noise_data(data, max_ratio=0.5, augment_factor=4):
+	# """ Overlay tokens to create natural noise pattern
+	# # type: (pd.DataFrame, float) -> pd.DataFrame
+	# """
 	
-	Function stub:
-	- Should use with expand_data
-	- Implementation should be deterministic with randomness handled in data arg prior to call
-	"""
-	assert data is not None, "Must pass data kwarg."
-	pass
+	# # overlay a uniform-random sequence over each sequence by a uniform-random ratio in {0, 0.5}
+	# noise_ratio = np.random.uniform(0, max_ratio, len(data))
+	# data['data'] = (1-noise_factor) * data['data'] + noise_factor * data['data'].sample(frac=1)
+	
+	# return data
 
 
 def expand_data(data):
@@ -235,7 +237,7 @@ def partition_data(
 	return (train_x, train_y), (val_x, val_y), (test_x, test_y)
 
 
-def dataset_generator(data_x, data_y, batch_size, shuffle=True, debug_title=None):
+def batch_generator(data_x, data_y, batch_size, shuffle=True, debug_title=None):
 	""" Dataset batch generator
 	# type: (np.ndarray, np.ndarray, int, bool, str) ~> Tuple[np.ndarray, np.ndarray]
 	
@@ -254,7 +256,7 @@ def dataset_generator(data_x, data_y, batch_size, shuffle=True, debug_title=None
 			yield batch_x, batch_y
 
 
-def dataset_signature(data_x, data_y):
+def batch_signature(data_x, data_y):
 	""" Dataset tensor specification
 	# type: (np.ndarray, np.ndarray) -> Tuple[tf.TensorSpec, tf.TensorSpec]
 	
@@ -265,3 +267,39 @@ def dataset_signature(data_x, data_y):
 		tf.TensorSpec(shape=(None, *data_y.shape[1:]), dtype=data_y.dtype)
 	)
 	return sig
+
+
+###! increases GPU memory usage beyond hardware capacity -> but local mem is efficient
+def natural_noise_batch_generator(data_x, data_y, batch_size, shuffle=True, debug_title=None, max_ratio=0.5):
+	""" Overlay tokens to create natural noise pattern
+	# type: (np.ndarray, np.ndarray, int, bool, str, float) ~> Tuple[np.ndarray, np.ndarray]
+	"""
+	
+	# unpack
+	assert (len(data_x)==len(data_y))
+	n_samples = len(data_x)
+	
+	# yield infinite batches
+	while True:
+		
+		# generate random indices
+		data_idx_shuffle = np.random.permutation(n_samples) if shuffle else range(n_samples)
+		noise_idx_shuffle = np.random.permutation(n_samples)
+		
+		# iterate over all batches
+		for batch_idx, data_idx in enumerate(range(0, n_samples, batch_size)):
+			
+			# trace
+			if debug_title is not None:
+				print(f'\n{debug_title} {batch_idx}')
+			
+			# slice random noise
+			batch_noise_ratio = np.random.uniform(0, max_ratio, batch_size)[:, np.newaxis, np.newaxis]
+			batch_data_idx = data_idx_shuffle[data_idx:data_idx+batch_size]
+			batch_noise_idx = noise_idx_shuffle[data_idx:data_idx+batch_size]
+			
+			# determine batch
+			batch_x = (1-batch_noise_ratio) * data_x[batch_data_idx] + batch_noise_ratio * data_x[batch_noise_idx]
+			batch_y = data_y[batch_data_idx]
+			
+			yield batch_x, batch_y

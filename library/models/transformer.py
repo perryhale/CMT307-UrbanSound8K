@@ -153,11 +153,22 @@ def get_denoising_transformer_encoder(
 		n_blocks,
 		n_heads=8,
 		dropout=0.1,
-		mask_ratio=0.3,
+		noise_layer_init=lambda k : layers.Lambda(lambda x:x, name='identity_function'),
 		name='denoising_transformer_encoder'
 	):
 	""" Instantiate Denoising Transformer Encoder
-	# type: (int, int, int, int, int, int, int, float, float, str) -> tf.keras.models.Model
+	# type: (
+		int, 
+		int, 
+		int, 
+		int, 
+		int, 
+		int, 
+		int, 
+		float, 
+		lambda (int) -> layers.Layer,
+		str
+	) -> tf.keras.models.Model
 	
 	- Sequence length is fixed by position encoding layer
 	- Uses functional interface internally
@@ -168,9 +179,9 @@ def get_denoising_transformer_encoder(
 	embed_keys = split_key(embed_key, n=3)
 	encoder_keys = split_key(encoder_key, n=n_blocks)
 	
-	# init input with gaussian perturbation
+	# init input with perturbation
 	x = tf.keras.Input(shape=(n_tokens, token_dim))
-	z = PermanentUniformTokenMask(mask_ratio=mask_ratio, seed=noise_key)(x)
+	z = noise_layer_init(noise_key)(x)
 	
 	# init input embedding
 	input_embedding = layers.Dense(
