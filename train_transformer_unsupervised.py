@@ -140,20 +140,20 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 print('Convert to Dataset..')
 
 train_dataset = tf.data.Dataset.from_generator(
-	lambda:batch_generator(train_x, train_x, BATCH_SIZE, shuffle=True),#, debug_title='test_dataset'),
-	#lambda:natural_noise_batch_generator(train_x, train_x, BATCH_SIZE, shuffle=True, max_ratio=MAX_RATIO),
+	#lambda:batch_generator(train_x, train_x, BATCH_SIZE, shuffle=True),#, debug_title='test_dataset'),
+	lambda:natural_noise_batch_generator(train_x, train_x, BATCH_SIZE, shuffle=True, max_ratio=NNS_RATIO),
 	output_signature=batch_signature(train_x, train_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 val_dataset = tf.data.Dataset.from_generator(
-	lambda:batch_generator(val_x, val_x, BATCH_SIZE, shuffle=False),#, debug_title='test_dataset'),
-	#lambda:natural_noise_batch_generator(val_x, val_x, BATCH_SIZE, shuffle=False, max_ratio=MAX_RATIO),
+	#lambda:batch_generator(val_x, val_x, BATCH_SIZE, shuffle=False),#, debug_title='test_dataset'),
+	lambda:natural_noise_batch_generator(val_x, val_x, BATCH_SIZE, shuffle=False, max_ratio=NNS_RATIO),
 	output_signature=batch_signature(val_x, val_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 test_dataset = tf.data.Dataset.from_generator(
-	lambda:batch_generator(test_x, test_x, BATCH_SIZE, shuffle=False),#, debug_title='test_dataset'),
-	#lambda:natural_noise_batch_generator(test_x, test_x, BATCH_SIZE, shuffle=False, max_ratio=MAX_RATIO),
+	#lambda:batch_generator(test_x, test_x, BATCH_SIZE, shuffle=False),#, debug_title='test_dataset'),
+	lambda:natural_noise_batch_generator(test_x, test_x, BATCH_SIZE, shuffle=False, max_ratio=NNS_RATIO),
 	output_signature=batch_signature(test_x, test_x)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
@@ -186,7 +186,7 @@ model = get_denoising_transformer_encoder(
 	ENCODER_BLOCKS,
 	n_heads=N_HEADS,
 	dropout=DROPOUT,
-	noise_layer_init=lambda k : PermanentUniformTokenMask(mask_ratio=MASK_RATIO, seed=k)
+	#noise_layer_init=lambda k : PermanentUniformTokenMask(mask_ratio=MASK_RATIO, seed=k)
 )
 model.compile(loss=loss_fn, optimizer=optimizer, metrics=['root_mean_squared_error'])
 model.summary()
