@@ -7,3 +7,4 @@
 jobs/*
 !jobs/results.csv
 !jobs/*.sh
+!jobs/*.py
