@@ -8,5 +8,6 @@ date
 cd ..
 source ~/.python_venv/bin/activate
 python3 train_transformer_unsupervised.py
-python3 train_transformer.py
-python3 train_transformer_random_init.py
+python3 train_transformer_gridsearch.py
+#python3 train_transformer.py
+#python3 train_transformer_random_init.py
