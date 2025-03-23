@@ -115,17 +115,17 @@ print(f'[Elapsed time: {time.time()-T0:.2f}s]')
 print('Convert to Dataset..')
 
 train_dataset = tf.data.Dataset.from_generator(
-	lambda:batch_generator(train_x, train_y, BATCH_SIZE, shuffle=True, debug_title='train_dataset'),
+	lambda:batch_generator(train_x, train_y, BATCH_SIZE, shuffle=True),#, debug_title='train_dataset'),
 	output_signature=batch_signature(train_x, train_y)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 val_dataset = tf.data.Dataset.from_generator(
-	lambda:batch_generator(val_x, val_y, BATCH_SIZE, shuffle=False, debug_title='val_dataset'),
+	lambda:batch_generator(val_x, val_y, BATCH_SIZE, shuffle=False),#, debug_title='val_dataset'),
 	output_signature=batch_signature(val_x, val_y)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 
 test_dataset = tf.data.Dataset.from_generator(
-	lambda:batch_generator(test_x, test_y, BATCH_SIZE, shuffle=False, debug_title='test_dataset'),
+	lambda:batch_generator(test_x, test_y, BATCH_SIZE, shuffle=False),#, debug_title='test_dataset'),
 	output_signature=batch_signature(test_x, test_y)
 ).prefetch(tf.data.experimental.AUTOTUNE)
 

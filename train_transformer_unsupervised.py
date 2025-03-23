@@ -186,7 +186,7 @@ model = get_denoising_transformer_encoder(
 	ENCODER_BLOCKS,
 	n_heads=N_HEADS,
 	dropout=DROPOUT,
-	noise_layer_init=lambda k : PermanentGaussianNoise(noise_sd=NOISE_SD, seed=k)
+	noise_layer_init=lambda k : PermanentGaussianNoise(NOISE_SD, seed=k)
 	#noise_layer_init=lambda k : PermanentUniformTokenMask(mask_ratio=MASK_RATIO, seed=k)
 )
 model.compile(loss=loss_fn, optimizer=optimizer, metrics=['root_mean_squared_error'])
