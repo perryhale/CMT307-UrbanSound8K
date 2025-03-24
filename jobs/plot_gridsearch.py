@@ -16,21 +16,50 @@ eta_space = np.array([item['info']['eta'] for item in history[:, 0]])
 dpo_space = np.array([item['info']['dropout'] for item in history[0, :]])
 val_grid = np.array([[np.max(item['train']['val_accuracy']) for item in row] for row in history])
 
+###! debug
+# plt.imshow(val_grid)
+# plt.show()
+# plt.imshow(np.array([[item['info']['dropout'] for item in row] for row in history]))
+# plt.show()
+# plt.imshow(np.array([[item['info']['eta'] for item in row] for row in history]))
+# plt.show()
+# sys.exit()
+
+###! padding (interpolator bounded by data range)
+# pad = 0.1
+# eta_min, eta_max = min(eta_space), max(eta_space)
+# dpo_min, dpo_max = min(dpo_space), max(dpo_space)
+# eta_pad = (eta_max - eta_min) * pad
+# dpo_pad = (dpo_max - dpo_min) * pad
+# xlim_min = eta_min - eta_pad
+# xlim_max = eta_max + eta_pad
+# ylim_min = dpo_min - dpo_pad
+# ylim_max = dpo_max + dpo_pad
+# ax.set_xlim(xlim_min, xlim_max)
+# ax.set_ylim(ylim_min, ylim_max)
+
 # interpolate to higher resolution
 res = 512
 method = 'cubic'
-eta_fine, dpo_fine = np.meshgrid(np.linspace(eta_space.min(), eta_space.max(), res), np.linspace(dpo_space.min(), dpo_space.max(), res), indexing='ij')
-val_fine = RegularGridInterpolator((eta_space, dpo_space), val_grid, method=method)(np.array([eta_fine.ravel(), dpo_fine.ravel()]).T).reshape(res, res)
+cmap = 'rainbow'
+interpolator = RegularGridInterpolator((eta_space, dpo_space), val_grid, method=method)
+eta_fine, dpo_fine = np.meshgrid(np.linspace(min(eta_space), max(eta_space), res), np.linspace(min(dpo_space), max(dpo_space), res), indexing='ij')
+val_fine = interpolator(np.array([eta_fine.ravel(), dpo_fine.ravel()]).T).reshape(res, res)
 
 # draw high resolution contour
 fig, ax = plt.subplots()
-contour = ax.contourf(eta_fine, dpo_fine, val_fine, cmap='rainbow', levels=res)
+contour = ax.contourf(eta_fine, dpo_fine, val_fine, cmap=cmap, levels=res)
 cbar = fig.colorbar(contour)
-cbar.set_label('Validation accuracy', rotation=270, labelpad=15)
 
 # draw labels
+cbar.set_label('Validation accuracy', rotation=270, labelpad=15)
+cbar.set_ticks(np.linspace(val_grid.min(), val_grid.max(), 10))
 ax.set_xlabel('Learning rate')
 ax.set_ylabel('Dropout rate')
+
+# draw maxima
+val_max = np.unravel_index(val_grid.argmax(), val_grid.shape)
+ax.scatter(eta_space[val_max[0]], dpo_space[val_max[1]], marker='*', c='gold', s=128)
 
 # save and close
 plt.savefig(f'{__file__.replace(".py","")}-001.png')
@@ -50,8 +79,9 @@ for i in range(history.shape[0]):
         train_history = history[i, j]['train']
         
         # plot losses
-        ax[0].plot(train_history['loss'], label=f'(eta={model_info["eta"]:.6f}, dpo={model_info["dropout"]:.2f})', linewidth=0.5)
-        ax[1].plot(train_history['val_loss'], label=f'(eta={model_info["eta"]:.6f}, dpo={model_info["dropout"]:.2f})', linewidth=0.5)
+        label = f'(eta={model_info["eta"]:.6f}, dpo={model_info["dropout"]:.2f})'
+        ax[0].plot(train_history['loss'], label=label, linewidth=0.5)
+        ax[1].plot(train_history['val_loss'], label=label, linewidth=0.5)
         
         # determine min and max
         high_score = max(high_score, max(max(train_history['loss']), max(train_history['val_loss'])))

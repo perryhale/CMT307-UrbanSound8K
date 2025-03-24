@@ -11,12 +11,12 @@ guess_score = 0.1
 group_idx = [[1,4], [5,7], [8,10], [11,16]]
 test_accuracy = np.array([np.mean(df['test_accuracy'][i:j]) for i,j in group_idx])
 val_accuracy = np.array([np.mean(df['val_accuracy'][i:j]) for i,j in group_idx])
-kfold_accuracy = [0.62] # placeholder
+#kfold_accuracy = [0.62] # placeholder
 stage_axis = range(1, len(test_accuracy)+1)
-stage_labels = ['constant lr', '+decay schedule', '+low init lr', '-high init lr \n +noise variations']
+stage_labels = ['constant low lr', '+decay schedule\n+high init lr', '+low init lr', '-high init lr \n +noise variations\n+dropout']
 
 # initialise figure
-fig, ax = plt.subplots(figsize=(7,5))
+fig, ax = plt.subplots(figsize=(7,6))
 
 # draw train scores
 ax.plot(stage_axis, test_accuracy, color='green')
@@ -27,7 +27,7 @@ ax.plot(stage_axis, val_accuracy, color='red')
 ax.scatter(stage_axis, val_accuracy, marker='x', color='red', label='Validation')
 
 # draw kfold scores
-ax.scatter([stage_axis[-1]], kfold_accuracy, label='KFold', marker='x', color='blue')
+#ax.scatter([stage_axis[-1]], kfold_accuracy, label='KFold', marker='x', color='blue')
 
 # draw random threshold
 ax.axhline(y=guess_score, color='grey', linestyle='--', alpha=0.2, label='Random')
