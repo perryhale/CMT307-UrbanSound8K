@@ -1,7 +1,7 @@
 directory,pretrain_noise,pretrain_data,n_epochs,eta,decay_rate,decay_factor,dropout,test_accuracy,val_accuracy
 *
 a2,none,none,100,1e-6,0.0,1.0,0.1,0.4512,0.4062
-a1,gaussian,urbandound8k,100,1e-6,0.0,1.0,0.1,0.4050,0.3885
+a1,gaussian,urbansound8k,100,1e-6,0.0,1.0,0.1,0.4050,0.3885
 a2,gaussian,audioset,100,1e-6,0.0,1.0,0.1,0.5093,0.5543
 *
 b1,none,none,50,1e-3,0.37,0.1,0.1,0.5531,0.7248
@@ -11,7 +11,7 @@ b2,none,none,200,1e-5,0.37,0.1,0.1,0.5475,0.6691
 b2,gaussian,audioset,50,1e-5,0.37,0.1,0.1,0.4668,0.4755
 *
 c2,none,none,50,1e-3,0.37,0.1,0.4,0.5406,0.7309
-c1,gaussian,urbandound8k,50,1e-3,0.37,0.1,0.4,0.5581,0.7187
+c1,gaussian,urbansound8k,50,1e-3,0.37,0.1,0.4,0.5581,0.7187
 c2,gaussian,audioset,50,1e-3,0.37,0.1,0.4,0.5600,0.7418
 d1,masking,audioset,50,1e-3,0.37,0.1,0.4,0.5558,0.7092
 d2,natural,audioset,50,1e-3,0.37,0.1,0.4,0.5350,0.6820

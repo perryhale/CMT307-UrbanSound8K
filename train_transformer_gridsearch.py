@@ -57,7 +57,7 @@ assert (N_SAMPLES % N_TOKENS) == 0
 # steps
 N_EPOCHS = 100
 BATCH_SIZE = 64
-PATIENCE = 5
+PATIENCE = 15
 
 # learning rate
 DECAY_RATE = 0.37
