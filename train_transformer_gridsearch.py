@@ -68,11 +68,11 @@ VAL_RATIO = 0.10
 TEST_IDX = 1
 
 # gridsearch
-GS_ETA_HIGH = 1e-2
-GS_ETA_LOW = 1e-6
+GS_ETA_HIGH = -2 # uses logspace
+GS_ETA_LOW = -6 # -
 GS_ETA_DOF = 8
-GS_DROPOUT_HIGH = 0.5
-GS_DROPOUT_LOW = 0.0
+GS_DROPOUT_HIGH = 0.5 # use linspace
+GS_DROPOUT_LOW = 0.0 # -
 GS_DROPOUT_DOF = 8
 
 # tracing
@@ -141,7 +141,7 @@ del data
 
 ### perform gridsearch
 
-eta_space = np.linspace(GS_ETA_LOW, GS_ETA_HIGH, num=GS_ETA_DOF)
+eta_space = np.logspace(GS_ETA_LOW, GS_ETA_HIGH, num=GS_ETA_DOF)
 dropout_space = np.linspace(GS_DROPOUT_LOW, GS_DROPOUT_HIGH, num=GS_DROPOUT_DOF)
 history = np.empty((len(eta_space), len(dropout_space)), dtype='object')
 
@@ -173,7 +173,7 @@ for i, eta in enumerate(eta_space):
 		model = convert_dte_to_classifier(
 			model,
 			N_CLASSES,
-			name=f'{model.name}_eta{eta:.7f}_dropout{dropout:.7f}'.replace('.','_')
+			name=f'transformer_encoder_classifier_from_dte_backbone_eta{eta:.6f}_dropout{dropout:.6f}'.replace('.','_')
 		)
 		model.compile(loss=loss_fn, optimizer=optimizer, metrics=['accuracy'])
 		model.summary()
