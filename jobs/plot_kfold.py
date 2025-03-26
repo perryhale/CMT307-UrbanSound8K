@@ -81,22 +81,26 @@ ax.set_xticks(x)
 ax.set_xticklabels(folds)
 ax.legend()
 ax.set_ylim(0,1)
-ax.grid()
+#ax.grid()
 
-# # plot highest and lowest
-# scores = [f1]#[accuracy, precision, recall, f1]
-# min_score = min([min(x) for x in scores])
-# max_score = max([max(x) for x in scores])
-# mean_score = np.mean([np.mean(x) for x in scores])
+# plot highest and lowest
+scores = [accuracy]#[accuracy, precision, recall, f1]
+min_score = min([min(x) for x in scores])
+max_score = max([max(x) for x in scores])
+mean_score = np.mean([np.mean(x) for x in scores])
 
 # ax.axhline(mean_score, linestyle='dashed', c='grey')
-# ax.text(0, max_score+0.05, f'Mean F1: {max_score:.4f}', fontsize=8, ha='left', va='bottom', c='black', bbox=dict(facecolor='white', edgecolor='black', pad=10.0))
+# ax.text(0, max_score+0.15, f'Mean accuracy: {max_score:.4f}', fontsize=8, ha='left', va='bottom', c='black', bbox=dict(facecolor='white', edgecolor='black', pad=10.0))
 
-# ax.axhline(max_score, linestyle='dashed', c='g')
-# ax.text(0, max_score+0.15, f'Max F1: {max_score:.4f}', fontsize=8, ha='left', va='bottom', c='g', bbox=dict(facecolor='white', edgecolor='black', pad=10.0))
+ax.axhline(max_score, linestyle='dashed', c='g')
+ax.text(0, max_score+0.05, f'Max accuracy: {max_score:.4f}', fontsize=8, ha='left', va='bottom', c='g', bbox=dict(facecolor='white', edgecolor='black', pad=10.0))
 
-# ax.axhline(min_score, linestyle='dashed', c='r')
-# ax.text(0, min_score-0.05, f'Min F1: {min_score:.4f}', fontsize=8, ha='left', va='top', c='r', bbox=dict(facecolor='white', edgecolor='black', pad=10.0))
+ax.axhline(min_score, linestyle='dashed', c='r')
+ax.text(0, min_score-0.05, f'Min accuracy: {min_score:.4f}', fontsize=8, ha='left', va='top', c='r', bbox=dict(facecolor='white', edgecolor='black', pad=10.0))
+
+# # plot 0.6/0.4
+# ax.axhline(0.6, c='grey', linewidth=0.5)
+# ax.axhline(0.4, c='grey', linewidth=0.5)
 
 # save and close
 plt.tight_layout()
