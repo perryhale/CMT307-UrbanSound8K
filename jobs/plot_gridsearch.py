@@ -12,7 +12,8 @@ with open(ARG1, 'rb') as f:
     history = pickle.load(f)
 
 # extract values
-eta_space = np.array([item['info']['eta'] for item in history[:, 0]])
+eta_log_space = np.array([item['info']['eta'] for item in history[:, 0]]) # adaptation for logarithmic sampling, does not work for linear sampling
+eta_space = np.log(eta_log_space)
 dpo_space = np.array([item['info']['dropout'] for item in history[0, :]])
 val_grid = np.array([[np.max(item['train']['val_accuracy']) for item in row] for row in history])
 
@@ -54,6 +55,7 @@ cbar = fig.colorbar(contour)
 # draw labels
 cbar.set_label('Validation accuracy', rotation=270, labelpad=15)
 cbar.set_ticks(np.linspace(val_grid.min(), val_grid.max(), 10))
+ax.set_xticks(eta_space[::2], [f'{x:.1e}' for x in eta_log_space[::2]]) # adaptation for logarithmic sampling
 ax.set_xlabel('Learning rate')
 ax.set_ylabel('Dropout rate')
 
@@ -71,6 +73,8 @@ fig, ax = plt.subplots(1, 2, figsize=(12, 5))
 # iterate over history
 high_score = 0
 low_score = np.inf
+colors = plt.cm.Spectral(np.linspace(0, 1, history.shape[0]*history.shape[1]))
+color_counter = 0
 for i in range(history.shape[0]):
     for j in range(history.shape[1]):
 		
@@ -80,12 +84,15 @@ for i in range(history.shape[0]):
         
         # plot losses
         label = f'(eta={model_info["eta"]:.6f}, dpo={model_info["dropout"]:.2f})'
-        ax[0].plot(train_history['loss'], label=label, linewidth=0.5)
-        ax[1].plot(train_history['val_loss'], label=label, linewidth=0.5)
+        ax[0].plot(train_history['loss'], label=label, linewidth=0.5, c=colors[color_counter])
+        ax[1].plot(train_history['val_loss'], label=label, linewidth=0.5, c=colors[color_counter])
         
         # determine min and max
         high_score = max(high_score, max(max(train_history['loss']), max(train_history['val_loss'])))
         low_score = min(low_score, min(min(train_history['loss']), min(train_history['val_loss'])))
+        
+        # increment counter
+        color_counter += 1
 
 # draw labels
 ax[0].set_xlabel('Epochs')
