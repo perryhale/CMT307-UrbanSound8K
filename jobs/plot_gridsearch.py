@@ -95,10 +95,10 @@ for i in range(history.shape[0]):
         color_counter += 1
 
 # draw labels
-ax[0].set_xlabel('Epochs')
+ax[0].set_xlabel('Epoch')
 ax[0].set_ylabel('Training loss')
 ax[0].set_ylim(low_score-0.1, high_score+0.1)
-ax[1].set_xlabel('Epochs')
+ax[1].set_xlabel('Epoch')
 ax[1].set_ylabel('Validation loss')
 ax[1].set_ylim(low_score-0.1, high_score+0.1)
 
