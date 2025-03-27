@@ -54,7 +54,7 @@ cbar = fig.colorbar(contour)
 
 # draw labels
 cbar.set_label('Validation accuracy', rotation=270, labelpad=15)
-cbar.set_ticks(np.linspace(val_grid.min(), val_grid.max(), 10))
+cbar.set_ticks(np.linspace(val_grid.min(), val_grid.max(), 9))
 ax.set_xticks(eta_space[::2], [f'{x:.1e}' for x in eta_log_space[::2]]) # adaptation for logarithmic sampling
 ax.set_xlabel('Learning rate')
 ax.set_ylabel('Dropout rate')
