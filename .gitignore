@@ -5,6 +5,8 @@
 !data/AudioSet/placeholder
 
 jobs/*
-!jobs/results.csv
+!jobs/*.csv
 !jobs/*.sh
 !jobs/*.py
+
+!README.md
