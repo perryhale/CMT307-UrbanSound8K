@@ -1,8 +1,8 @@
 *.*
 !*.py
 
-!data/UrbanSound8K/UrbanSound8K_README.txt
 !data/AudioSet/placeholder
+!data/UrbanSound8K/UrbanSound8K_README.txt
 
 jobs/*
 !jobs/*.csv

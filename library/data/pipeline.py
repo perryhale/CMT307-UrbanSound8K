@@ -269,7 +269,7 @@ def batch_signature(data_x, data_y):
 	return sig
 
 
-###! increases GPU memory usage beyond hardware capacity -> but local mem is efficient
+###! increases GPU memory usage beyond local hardware mem -> but mem is efficient, see convert_to_natural_noise_data
 def natural_noise_batch_generator(data_x, data_y, batch_size, shuffle=True, debug_title=None, max_ratio=0.5):
 	""" Overlay tokens to create natural noise pattern
 	# type: (np.ndarray, np.ndarray, int, bool, str, float) ~> Tuple[np.ndarray, np.ndarray]
